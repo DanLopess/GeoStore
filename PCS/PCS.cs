@@ -45,7 +45,7 @@ namespace PCS
 
             List<string> arguments = new List<string> { request.ServerId.ToString(), 
                 request.Url, request.MinDelay.ToString(), request.MaxDelay.ToString() };
-            string argumentString = string.Join(" ", arguments.Select(x => x.ToString()).ToArray());
+            string argumentString = String.Join(" ", arguments);
             start.Arguments = argumentString;
             start.FileName = serverFilename;
             start.WindowStyle = ProcessWindowStyle.Normal;

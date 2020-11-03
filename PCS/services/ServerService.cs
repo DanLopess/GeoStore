@@ -18,6 +18,8 @@ namespace PCS.services
             this.logic = serverLogic;
         }
 
+
+
         // ==== Overrides ====
         public override Task<StartClientProcessReply> StartClientProcess(
             StartClientProcessRequest request, ServerCallContext context)
@@ -30,6 +32,8 @@ namespace PCS.services
         {
             return Task.FromResult(StartServer(request));
         }
+
+
 
         // ==== Implementation ====
         public StartClientProcessReply StartClient(StartClientProcessRequest request)

@@ -13,10 +13,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Services\" />
+    <Protobuf Include="protos\PCSService.proto" GrpcServices="Both" />
   </ItemGroup>
 
 </Project>

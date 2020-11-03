@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+service PCSServerService {
+	rpc StartClientProcess (StartClientProcessRequest) returns (StartClientProcessReply);
+	rpc StartServerProcess (StartServerProcessRequest) returns (StartServerProcessReply);
+}
+
+message StartClientProcessRequest {
+	string username = 1;
+	string url = 2;
+	string scriptFilename = 3;
+}	
+
+message StartClientProcessReply {
+	bool ok = 1;
+}
+
+message StartServerProcessRequest {
+	int32 serverId = 1;
+	string url = 2;
+	int32 maxDelay = 3;
+	int32 minDelay = 4;
+}	
+
+message StartServerProcessReply {
+	bool ok = 1;
+}
