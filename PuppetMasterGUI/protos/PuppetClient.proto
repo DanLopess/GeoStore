@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+service PuppetClientService {
+	rpc GetClientStatus (GetClientStatusRequest) returns (GetClientStatusReply);
+}
+
+message GetClientStatusRequest {
+}	
+
+message GetClientStatusReply {
+	bool ok = 1;
+	string response = 2;
+}

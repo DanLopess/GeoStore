@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+service PuppetServerService {
+	rpc GetServerStatus (GetServerStatusRequest) returns (GetServerStatusReply);
+	rpc ChangeServerState (ChangeServerStateRequest) returns (ChangeServerStateReply);
+}
+
+message GetServerStatusRequest {
+}	
+
+message GetServerStatusReply {
+	bool ok = 1;
+	string response = 2;
+}
+
+message ChangeServerStateRequest {
+	ServerState state = 1;
+}	
+
+message ChangeServerStateReply {
+	bool ok = 1;
+}
+
+enum ServerState {
+	CRASH = 1;
+	FREEZE = 2;
+	UNFREEZE = 3;
+}
