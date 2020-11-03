@@ -1,4 +1,5 @@
-﻿using Grpc.Core;
+﻿using MainServer;
+using Grpc.Core;
 using Grpc.Net.Client;
 using System;
 using System.Collections.Generic;
@@ -9,33 +10,34 @@ using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace chatServer
+namespace MainServer
 {
     // ChatServerService is the namespace defined in the protobuf
     // ChatServerServiceBase is the generated base implementation of the service
-    public class ServerService : ChatServerService.ChatServerServiceBase
+    public class MainServerService : ServerService.ServerServiceBase
     {
         private GrpcChannel channel;
-        private Dictionary<string, ChatClientService.ChatClientServiceClient> clientMap =
-            new Dictionary<string, ChatClientService.ChatClientServiceClient>();
+        private Dictionary<string, ClientService.ClientServiceClient> clientMap =
+            new Dictionary<string, ClientService.ClientServiceClient>();
 
         // DataCenter = <partionId, List<serverId>>
-        public Dictionary<int, List<int>> DataCenter =
+        private Dictionary<int, List<int>> DataCenter =
             new Dictionary<int, List<int>>();
         // ServerList = <serverId, URL>
-        public Dictionary<int, string> ServerList =
+        private Dictionary<int, string> ServerList =
             new Dictionary<int, string>(); 
         // StorageSystem = <UniqueKey,value>
-        public Dictionary<UniqueKey, string> StorageSystem =
+        private Dictionary<UniqueKey, string> StorageSystem =
             new Dictionary<UniqueKey, string>();
         // MyId stores the server id
-        public int MyId;
+        private int MyId;
 
-        public ServerService(){
+        public MainServerService(int Id){
+            this.MyId = Id;
         }
 
-        public override Task<ChatClientRegisterReply> Register(
-            ChatClientRegisterRequest request, ServerCallContext context)
+        public override Task<ClientRegisterReply> Register(
+            ClientRegisterRequest request, ServerCallContext context)
         {
             Console.WriteLine("Deadline: " + context.Deadline);
             Console.WriteLine("Host: " + context.Host);
@@ -43,17 +45,17 @@ namespace chatServer
             Console.WriteLine("Peer: " + context.Peer);
             return Task.FromResult(Reg(request));
         }
-        public ChatClientRegisterReply Reg(ChatClientRegisterRequest request)
+        public ClientRegisterReply Reg(ClientRegisterRequest request)
         {
             channel = GrpcChannel.ForAddress(request.Url);
-            ChatClientService.ChatClientServiceClient client =
-                new ChatClientService.ChatClientServiceClient(channel);
+            ClientService.ClientServiceClient client =
+                new ClientService.ClientServiceClient(channel);
             lock (this)
             {
                 clientMap.Add(request.Nick, client);
             }
             Console.WriteLine($"Registered client {request.Nick} with URL {request.Url}");
-            ChatClientRegisterReply reply = new ChatClientRegisterReply();
+            ClientRegisterReply reply = new ClientRegisterReply();
             lock (this)
             {
                 foreach (string nick in clientMap.Keys)
@@ -63,7 +65,6 @@ namespace chatServer
             }
             return reply;
         }
-
 
 
         public override Task<BcastMsgReply> BcastMsg(BcastMsgRequest request, ServerCallContext context)
@@ -135,14 +136,17 @@ namespace chatServer
             // TODO implement lock
             StorageSystem.Add(uKey, value);
 
-            // TODO implement send to other servers
             if (DataCenter[uKey.PartitionId][0] == MyId){
                 List<int> OtherServer = DataCenter[uKey.PartitionId];
-                foreach (var item in OtherServer)
-                {
-                    AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
-                    string url = ServerList[item];
-                    channel = GrpcChannel.ForAddress(url);
+                OtherServer.RemoveAt(0);
+                if (OtherServer.Count != 0){
+                    foreach (var item in OtherServer){
+                        string url = ServerList[item];
+                        channel = GrpcChannel.ForAddress(url);
+                        ServerService.ServerServiceClient server =
+                            new ServerService.ServerServiceClient(channel);
+                        server.Write(request);
+                    }
                 }
             }
 
@@ -185,17 +189,46 @@ namespace chatServer
         }
 
 
+        public override Task<ListEachGlobalResponse> ListEachGlobal(ListEachGlobalRequest request, ServerCallContext context)
+        {
+            return Task.FromResult(listEachGlobal(request));
+        }
+        public ListEachGlobalResponse listEachGlobal(ListEachGlobalRequest request){
+            var listEachGlobalResponse = new ListEachGlobalResponse();
+            foreach (var item in StorageSystem)
+            {
+                UniqueKey uKey = item.Key;
+                listEachGlobalResponse.UniqueKeyList.Add(uKey);
+            }
+            return listEachGlobalResponse;
+        }
+
+
         public override Task<ListGlobalResponse> ListGlobal(ListGlobalRequest request, ServerCallContext context)
         {
             return Task.FromResult(listGlobal(request));
         }
         public ListGlobalResponse listGlobal(ListGlobalRequest request){
-            
             var listGlobalResponse = new ListGlobalResponse();
+            var listEachGlobalResponse = new ListEachGlobalResponse();
+            Dictionary<int, string> tmpListServer = ServerList;
+            tmpListServer.Remove(MyId);
 
             foreach (var item in StorageSystem){
                 UniqueKey uKey = item.Key;
                 listGlobalResponse.UniqueKeyList.Add(uKey);
+            }
+
+            foreach (var item in tmpListServer) {
+                string url = item.Value;
+                channel = GrpcChannel.ForAddress(url);
+                ServerService.ServerServiceClient server = new ServerService.ServerServiceClient(channel);
+                ListEachGlobalRequest lsRequest = new ListEachGlobalRequest{ ServerId = item.Key};
+
+                listEachGlobalResponse = server.ListEachGlobal(lsRequest);
+                foreach(var tmp in listEachGlobalResponse.UniqueKeyList){
+                    listGlobalResponse.UniqueKeyList.Add(tmp);
+                }
             }
 
             return listGlobalResponse;
@@ -212,10 +245,10 @@ namespace chatServer
                 string startupMessage;
                 ServerPort serverPort;
                 int serverId;
-                
+
+                Console.WriteLine("Insert an Id for the Server");
                 serverId = Convert.ToInt32(Console.ReadLine());
-                Console.WriteLine(serverId);
-                int port = 1000 + serverId;
+                int port = 10000 + serverId;
 
                 serverPort = new ServerPort(hostname, port, ServerCredentials.Insecure);
                 startupMessage = "Insecure ChatServer server listening on port " + port;
@@ -223,7 +256,7 @@ namespace chatServer
 
                 Server server = new Server
                 {
-                    Services = { ChatServerService.BindService(new ServerService()) },
+                    Services = { ServerService.BindService(new MainServerService(serverId)) },
                     Ports = { serverPort }
                 };
 
@@ -232,7 +265,10 @@ namespace chatServer
                 Console.WriteLine(startupMessage);
                 //Configuring HTTP for client connections in Register method
                 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
-                while (true) ;
+
+                Console.WriteLine("Press any key to stop the PCS");
+                Console.ReadKey();
+                server.ShutdownAsync().Wait();
             }
         }
     }

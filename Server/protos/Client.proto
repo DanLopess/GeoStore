@@ -1,6 +1,6 @@
 ﻿syntax = "proto3";
 
-service ChatClientService {
+service ClientService {
   rpc RecvMsg (RecvMsgRequest) returns (RecvMsgReply);
 }
 

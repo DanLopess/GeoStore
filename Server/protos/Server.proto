@@ -1,21 +1,22 @@
 ﻿syntax = "proto3";
 
-service ChatServerService {
-	rpc Register (ChatClientRegisterRequest) returns (ChatClientRegisterReply);
+service ServerService {
+	rpc Register (ClientRegisterRequest) returns (ClientRegisterReply);
 	rpc BcastMsg (BcastMsgRequest) returns (BcastMsgReply);
 	rpc Write (WriteRequest) returns (WriteResponse);
 	rpc Read (ReadRequest) returns (ReadResponse);
 	rpc ListServer (ListServerRequest) returns (ListServerResponse);
+	rpc ListEachGlobal (ListEachGlobalRequest) returns (ListEachGlobalResponse);
 	rpc ListGlobal (ListGlobalRequest) returns (ListGlobalResponse);
 	rpc Wait (WaitRequest) returns (WaitResponse);
 	rpc BeginRepeat (BeginRepeatRequest) returns (BeginRepeatResponse);
 	rpc EndRepeat (EndRepeatRequest) returns (EndRepeatResponse);
 }
-message ChatClientRegisterRequest {
+message ClientRegisterRequest {
   string nick = 1;
   string url = 2;	
 }
-message ChatClientRegisterReply {
+message ClientRegisterReply {
 	repeated User users = 1;
 }
 message User {
@@ -68,6 +69,13 @@ message ListServerRequest{
 
 message ListServerResponse{
 	repeated ListServerObj listServerObj = 1;	
+}
+
+message ListEachGlobalRequest{
+	int32 server_id = 1;
+}
+message ListEachGlobalResponse{
+	repeated UniqueKey uniqueKeyList = 1;
 }
 
 message ListGlobalRequest{
