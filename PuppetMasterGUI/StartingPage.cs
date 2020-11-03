@@ -39,13 +39,16 @@ namespace PuppetMasterGUI
 
             }
             logic.scriptFilename = configurationPath.Text;
-            logic.RunScript();
             
-            // RUN SCRIPT
-            // IF EVERYTHING RAN CORRECTLY
-            // OPENS NEW FORM WINDOW
-            // FOR RUNNING AND SENDING COMMANDS
-            // ELSE SHOWS ERROR
+            try
+            {
+                logic.RunScript();
+                LoadCommandPage();
+
+            } catch
+            {
+                MessageBox.Show("Oops! Something went wrong. Please try again!!!");
+            }
         }
 
         private void configurationPath_TextChanged(object sender, EventArgs e)
@@ -58,6 +61,16 @@ namespace PuppetMasterGUI
         private void SetScriptButton()
         {
             runScriptButton.Enabled = (configurationPath.Text != "" && File.Exists(configurationPath.Text));
+        }
+
+        private void LoadCommandPage()
+        {
+            var frm = new CommandsPage();
+            frm.Location = this.Location;
+            frm.StartPosition = FormStartPosition.Manual;
+            frm.FormClosing += delegate { this.Show(); };
+            frm.Show();
+            this.Hide();
         }
 
     }
