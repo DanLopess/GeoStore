@@ -21,19 +21,35 @@ namespace MainServer
             new Dictionary<string, ClientService.ClientServiceClient>();
 
         // DataCenter = <partionId, List<serverId>>
-        private Dictionary<int, List<int>> DataCenter =
-            new Dictionary<int, List<int>>();
+        private Dictionary<string, List<string>> DataCenter =
+            new Dictionary<string, List<string>>();
         // ServerList = <serverId, URL>
-        private Dictionary<int, string> ServerList =
-            new Dictionary<int, string>(); 
+        private Dictionary<string, string> ServerList =
+            new Dictionary<string, string>(); 
         // StorageSystem = <UniqueKey,value>
         private Dictionary<UniqueKey, string> StorageSystem =
             new Dictionary<UniqueKey, string>();
         // MyId stores the server id
-        private int MyId;
+        private string MyId;
 
-        public MainServerService(int Id){
+        public MainServerService(string Id){
             this.MyId = Id;
+            
+            Dictionary<string, List<string>> tmp = new Dictionary<string, List<string>>();
+            List<string> tmpA = new List<string>();
+            List<string> tmpB = new List<string>();
+            tmpA.Add("Server-1");
+            tmpA.Add("Server-3");
+            tmpB.Add("Server-3");
+            tmpB.Add("Server-1");
+            tmp.Add("Part1", tmpA);
+            tmp.Add("Part2", tmpB);
+            this.DataCenter = tmp;
+
+            Dictionary<string, string> tmp2 = new Dictionary<string, string>();
+            tmp2.Add("Server-1", "http://localhost:10001");
+            tmp2.Add("Server-3", "http://localhost:10003");
+            this.ServerList = tmp2;
         }
 
         public override Task<ClientRegisterReply> Register(
@@ -135,21 +151,21 @@ namespace MainServer
             string value = request.Object.Value;
             // TODO implement lock
             StorageSystem.Add(uKey, value);
-
+            
             if (DataCenter[uKey.PartitionId][0] == MyId){
-                List<int> OtherServer = DataCenter[uKey.PartitionId];
+                List<string> OtherServer = new List<string>(DataCenter[uKey.PartitionId]); 
                 OtherServer.RemoveAt(0);
+
                 if (OtherServer.Count != 0){
                     foreach (var item in OtherServer){
                         string url = ServerList[item];
                         channel = GrpcChannel.ForAddress(url);
                         ServerService.ServerServiceClient server =
                             new ServerService.ServerServiceClient(channel);
-                        server.Write(request);
+                        server.WriteAsync(request);
                     }
                 }
             }
-
             return new WriteResponse
             {
                 Ok = true
@@ -167,11 +183,11 @@ namespace MainServer
             Object tmp = new Object();
             var listServerResponse = new ListServerResponse();
             var listObj = new ListServerObj();
-            
+
             foreach (var item in StorageSystem){
                 tmp.UniqueKey = item.Key;
                 tmp.Value = item.Value;
-                int partId = item.Key.PartitionId;
+                string partId = item.Key.PartitionId;
                 listObj.Object = tmp;
 
                 if (DataCenter[partId][0] == MyId){
@@ -180,10 +196,8 @@ namespace MainServer
                 else{
                     listObj.IsMaster = false;
                 }
-
                 listServerResponse.ListServerObj.Add(listObj);
             }
-
             return listServerResponse;
 
         }
@@ -211,7 +225,7 @@ namespace MainServer
         public ListGlobalResponse listGlobal(ListGlobalRequest request){
             var listGlobalResponse = new ListGlobalResponse();
             var listEachGlobalResponse = new ListEachGlobalResponse();
-            Dictionary<int, string> tmpListServer = ServerList;
+            Dictionary<string, string> tmpListServer = ServerList;
             tmpListServer.Remove(MyId);
 
             foreach (var item in StorageSystem){
@@ -240,7 +254,14 @@ namespace MainServer
             
             public static void Main(string[] args)
             {
-                
+                Random rnd = new Random();
+                /* Reading from command line
+                string MyId = args[0]; 
+                string MyUrl = args[2];
+                int min_delay = int.Parse(args[3]);
+                int max_delay = int.Parse(args[4]);
+                int delay = rnd.Next(min_delay, max_delay + 1);
+                */
                 const string hostname = "localhost";
                 string startupMessage;
                 ServerPort serverPort;
@@ -250,13 +271,15 @@ namespace MainServer
                 serverId = Convert.ToInt32(Console.ReadLine());
                 int port = 10000 + serverId;
 
+                //Just for testing
+                string MyId = "Server-" + serverId.ToString();
                 serverPort = new ServerPort(hostname, port, ServerCredentials.Insecure);
                 startupMessage = "Insecure ChatServer server listening on port " + port;
 
 
                 Server server = new Server
                 {
-                    Services = { ServerService.BindService(new MainServerService(serverId)) },
+                    Services = { ServerService.BindService(new MainServerService(MyId)) },
                     Ports = { serverPort }
                 };
 
@@ -266,9 +289,7 @@ namespace MainServer
                 //Configuring HTTP for client connections in Register method
                 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 
-                Console.WriteLine("Press any key to stop the PCS");
-                Console.ReadKey();
-                server.ShutdownAsync().Wait();
+                while(true);
             }
         }
     }

@@ -32,8 +32,8 @@ message BcastMsgReply {
 }
 
 message UniqueKey{
-	int32 partitionId = 1;
-	int32 objectId = 2;
+	string partitionId = 1;
+	string objectId = 2;
 }
 
 message Object{
@@ -51,7 +51,7 @@ message WriteResponse{
 
 message ReadRequest{
 	UniqueKey uniqueKey = 1;
-	int32 server_id = 2;
+	string server_id = 2;
 }
 
 message ReadResponse{
@@ -64,7 +64,7 @@ message ListServerObj{
 }
 
 message ListServerRequest{
-	int32 server_id = 1;
+	string server_id = 1;
 }
 
 message ListServerResponse{
@@ -72,7 +72,7 @@ message ListServerResponse{
 }
 
 message ListEachGlobalRequest{
-	int32 server_id = 1;
+	string server_id = 1;
 }
 message ListEachGlobalResponse{
 	repeated UniqueKey uniqueKeyList = 1;
