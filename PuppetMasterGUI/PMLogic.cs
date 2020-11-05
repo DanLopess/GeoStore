@@ -125,7 +125,7 @@ namespace PuppetMasterGUI
 
                 if (reply.Ok)
                 {
-                    lock (this) { clientMapping.Add(splittedCommand[1], splittedCommand[2]); }
+                    lock (this) { clientMapping.TryAdd(splittedCommand[1], splittedCommand[2]); }
                     // Only add to mappings if node started correctly
                 } 
             }
@@ -154,7 +154,7 @@ namespace PuppetMasterGUI
 
                 if (reply.Ok)
                 {
-                    lock (this) { serverMapping.Add(splittedCommand[1], splittedCommand[2]); }
+                    lock (this) { serverMapping.TryAdd(splittedCommand[1], splittedCommand[2]); }
                     // Only add to mappings if node started correctly
                 }
             }
@@ -176,7 +176,7 @@ namespace PuppetMasterGUI
                     replicas.Add(splittedCommand[i]);
                 }
 
-                lock(this) { partitionsMapping.Add(partitionId, replicas); }
+                lock(this) { partitionsMapping.TryAdd(partitionId, replicas); }
             }
         }
 

@@ -45,7 +45,7 @@ namespace PuppetMasterGUI
             {
                 logic.RunScript();
                 MessageBox.Show("All of the commands on the script were executed! \nEntering single command mode...");
-                Thread.Sleep(2000); // Wait 2 seconds before opening new page
+                Thread.Sleep(500); // Wait 2 seconds before opening new page
                 LoadCommandPage();
 
             } catch (Exception ex)
