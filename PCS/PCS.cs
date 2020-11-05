@@ -12,8 +12,8 @@ namespace PCS
     public class PCSServerLogic
     {
         private List<Process> clientsAndServers;
-        private const string clientFilename = "client.exe";
-        private const string serverFilename = "server.exe";
+        private string clientFilename = "client.exe";
+        private string serverFilename = "server.exe";
 
 
         public PCSServerLogic(){
@@ -43,8 +43,8 @@ namespace PCS
             // Prepare the process to run
             ProcessStartInfo start = new ProcessStartInfo();
 
-            List<string> arguments = new List<string> { request.ServerId.ToString(), 
-                request.Url, request.MinDelay.ToString(), request.MaxDelay.ToString() };
+            List<string> arguments = new List<string> { request.ServerId, 
+                request.Url, request.MinDelay, request.MaxDelay };
             string argumentString = String.Join(" ", arguments);
             start.Arguments = argumentString;
             start.FileName = serverFilename;
@@ -65,6 +65,9 @@ namespace PCS
                 p.WaitForExit();
             });
         }
+
+        public void SetServerFilename(string filename) { this.serverFilename = filename; }
+        public void SetClientFilename(string filename) { this.clientFilename = filename; }
     }
 
     class Program
@@ -77,10 +80,18 @@ namespace PCS
             string startupMessage;
             ServerPort serverPort;
 
+            Console.Write("Enter server executable path: ");
+            string serverPath = Console.ReadLine();
+            Console.Write("Enter client executable path: ");
+            string clientPath = Console.ReadLine();
+
             serverPort = new ServerPort(hostname, PCSPort, ServerCredentials.Insecure);
-            startupMessage = "Insecure ChatServer server listening on port " + PCSPort;
+            startupMessage = "Insecure server listening on port " + PCSPort;
 
             PCSServerLogic logic = new PCSServerLogic();
+            logic.SetClientFilename(clientPath);
+            logic.SetServerFilename(serverPath);
+
             ServerService serverService = new ServerService(logic);
 
             Server server = new Server

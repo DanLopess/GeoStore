@@ -16,10 +16,10 @@ message StartClientProcessReply {
 }
 
 message StartServerProcessRequest {
-	int32 serverId = 1;
+	string serverId = 1;
 	string url = 2;
-	int32 maxDelay = 3;
-	int32 minDelay = 4;
+	string maxDelay = 3;
+	string minDelay = 4;
 }	
 
 message StartServerProcessReply {

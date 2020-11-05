@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 service PuppetService {
-	rpc GetStatus (GetServerStatusRequest) returns (GetServerStatusReply);
+	rpc GetStatus (GetNodeStatusRequest) returns (GetNodeStatusReply);
 	rpc ChangeServerState (ChangeServerStateRequest) returns (ChangeServerStateReply);
 	rpc SendMappings (SendMappingsRequest) returns (SendMappingsReply);
 }
@@ -17,10 +17,11 @@ message SendMappingsReply {
 	bool ok = 1;
 }
 
-message GetServerStatusRequest {
+message GetNodeStatusRequest {
+	
 }	
 
-message GetServerStatusReply {
+message GetNodeStatusReply {
 	bool ok = 1;
 	string response = 2;
 }
