@@ -17,7 +17,11 @@ namespace PuppetMasterGUI
         private Dictionary<string, List<string>> partitionsMapping; // <partition_id, server_id>
         public string scriptFilename { get; set; }
 
-        public PMLogic() { }
+        public PMLogic() {
+            serverMapping = new Dictionary<string, string>();
+            clientMapping = new Dictionary<string, string>();
+            partitionsMapping = new Dictionary<string, List<string>>();
+        }
 
         /// <summary>
         /// Method for executing all of the commands in a given script file

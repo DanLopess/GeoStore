@@ -36,6 +36,7 @@ namespace PCS
             // Run the external process
             using Process proc = Process.Start(start);
             clientsAndServers.Add(proc);
+            Console.WriteLine("Started new client with Username:%s and URL:%s", request.Username, request.Url);
         }
 
         public void StartServer(StartServerProcessRequest request)
@@ -55,6 +56,8 @@ namespace PCS
             // Run the external process
             using Process proc = Process.Start(start);
             clientsAndServers.Add(proc);
+
+            Console.WriteLine("Started new server with serverId:%s and URL:%s",request.ServerId, request.Url);
         }
 
         public void TerminateAllProcesses()
