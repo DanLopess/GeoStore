@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;  
 using System.Windows.Forms;
+using System.Threading;
 
 namespace PuppetMasterGUI
 {
@@ -43,6 +44,8 @@ namespace PuppetMasterGUI
             try
             {
                 logic.RunScript();
+                MessageBox.Show("All of the commands on the script were executed! \nEntering single command mode...");
+                Thread.Sleep(2000); // Wait 2 seconds before opening new page
                 LoadCommandPage();
 
             } catch (Exception ex)
