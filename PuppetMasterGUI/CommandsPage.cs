@@ -14,5 +14,35 @@ namespace PuppetMasterGUI
         {
             InitializeComponent();
         }
+
+        private void CrashButton_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void FreezeButton_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void UnfreezeButton_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void ServerIdTextbox_TextChanged(object sender, EventArgs e)
+        {
+            if (ServerIdTextbox.TextLength > 0)
+            {
+                CrashButton.Enabled = true;
+                FreezeButton.Enabled = true;
+                UnfreezeButton.Enabled = true;
+            } else
+            {
+                CrashButton.Enabled = false;
+                FreezeButton.Enabled = false;
+                UnfreezeButton.Enabled = false;
+            }
+        }
     }
 }
