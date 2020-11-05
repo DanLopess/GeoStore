@@ -12,13 +12,11 @@ using System.Threading.Tasks;
 
 namespace MainServer
 {
-    // ChatServerService is the namespace defined in the protobuf
-    // ChatServerServiceBase is the generated base implementation of the service
+    // ServerService is the namespace defined in the protobuf
+    // ServerServiceBase is the generated base implementation of the service
     public class MainServerService : ServerService.ServerServiceBase
     {
         private GrpcChannel channel;
-        private Dictionary<string, ClientService.ClientServiceClient> clientMap =
-            new Dictionary<string, ClientService.ClientServiceClient>();
 
         // DataCenter = <partionId, List<serverId>>
         private Dictionary<string, List<string>> DataCenter =
@@ -38,88 +36,19 @@ namespace MainServer
             Dictionary<string, List<string>> tmp = new Dictionary<string, List<string>>();
             List<string> tmpA = new List<string>();
             List<string> tmpB = new List<string>();
-            tmpA.Add("Server-1");
+            tmpA.Add("Server-2");
             tmpA.Add("Server-3");
             tmpB.Add("Server-3");
-            tmpB.Add("Server-1");
+            tmpB.Add("Server-2");
             tmp.Add("Part1", tmpA);
             tmp.Add("Part2", tmpB);
             this.DataCenter = tmp;
 
             Dictionary<string, string> tmp2 = new Dictionary<string, string>();
-            tmp2.Add("Server-1", "http://localhost:10001");
+            tmp2.Add("Server-2", "http://localhost:10002");
             tmp2.Add("Server-3", "http://localhost:10003");
             this.ServerList = tmp2;
         }
-
-        public override Task<ClientRegisterReply> Register(
-            ClientRegisterRequest request, ServerCallContext context)
-        {
-            Console.WriteLine("Deadline: " + context.Deadline);
-            Console.WriteLine("Host: " + context.Host);
-            Console.WriteLine("Method: " + context.Method);
-            Console.WriteLine("Peer: " + context.Peer);
-            return Task.FromResult(Reg(request));
-        }
-        public ClientRegisterReply Reg(ClientRegisterRequest request)
-        {
-            channel = GrpcChannel.ForAddress(request.Url);
-            ClientService.ClientServiceClient client =
-                new ClientService.ClientServiceClient(channel);
-            lock (this)
-            {
-                clientMap.Add(request.Nick, client);
-            }
-            Console.WriteLine($"Registered client {request.Nick} with URL {request.Url}");
-            ClientRegisterReply reply = new ClientRegisterReply();
-            lock (this)
-            {
-                foreach (string nick in clientMap.Keys)
-                {
-                    reply.Users.Add(new User { Nick = nick });
-                }
-            }
-            return reply;
-        }
-
-
-        public override Task<BcastMsgReply> BcastMsg(BcastMsgRequest request, ServerCallContext context)
-        {
-            return Task.FromResult(Bcast(request));
-        }
-        public BcastMsgReply Bcast(BcastMsgRequest request)
-        {
-            // random wait to simulate slow msg broadcast: Thread.Sleep(5000);
-            Console.WriteLine("msg arrived. lazy server waiting for server admin to press key.");
-            Console.ReadKey();
-            lock (this)
-            {
-                foreach (string nick in clientMap.Keys)
-                {
-                    if (nick != request.Nick)
-                    {
-                        try
-                        {
-                            clientMap[nick].RecvMsg(new RecvMsgRequest
-                            {
-                                Msg = request.Nick + ": " + request.Msg
-                            });
-                        }
-                        catch (Exception e)
-                        {
-                            Console.WriteLine(e.Message);
-                            clientMap.Remove(nick);
-                        }
-                    }
-                }
-            }
-            Console.WriteLine($"Broadcast message {request.Msg} from {request.Nick}");
-            return new BcastMsgReply
-            {
-                Ok = true
-            };
-        }
-
 
         public override Task<ReadResponse> Read(ReadRequest request, ServerCallContext context)
         {
@@ -179,27 +108,38 @@ namespace MainServer
             return Task.FromResult(listServer(request));
         }
         public ListServerResponse listServer(ListServerRequest request){
-            
-            Object tmp = new Object();
-            var listServerResponse = new ListServerResponse();
-            var listObj = new ListServerObj();
+                        
+            ListServerResponse listServerResponse = new ListServerResponse();
+            if (request.ServerId == MyId)
+            {
+                foreach (var item in StorageSystem)
+                {
+                    Object tmp = new Object();
+                    var listObj = new ListServerObj();
+                    tmp.UniqueKey = item.Key;
+                    tmp.Value = item.Value;
+                    string partId = tmp.UniqueKey.PartitionId;
+                    listObj.Object = tmp;
+                    if (DataCenter[partId][0] == MyId)
+                    {
+                        listObj.IsMaster = true;
+                    }
+                    else
+                    {
+                        listObj.IsMaster = false;
+                    }
+                    listServerResponse.ListServerObj.Add(listObj);
 
-            foreach (var item in StorageSystem){
-                tmp.UniqueKey = item.Key;
-                tmp.Value = item.Value;
-                string partId = item.Key.PartitionId;
-                listObj.Object = tmp;
-
-                if (DataCenter[partId][0] == MyId){
-                    listObj.IsMaster = true;
                 }
-                else{
-                    listObj.IsMaster = false;
-                }
-                listServerResponse.ListServerObj.Add(listObj);
+            }
+            else {
+                string url = ServerList[request.ServerId];
+                channel = GrpcChannel.ForAddress(url);
+                ServerService.ServerServiceClient server =
+                    new ServerService.ServerServiceClient(channel);
+                listServerResponse = server.ListServer(request);
             }
             return listServerResponse;
-
         }
 
 
@@ -254,8 +194,8 @@ namespace MainServer
             
             public static void Main(string[] args)
             {
-                Random rnd = new Random();
                 /* Reading from command line
+                Random rnd = new Random();
                 string MyId = args[0]; 
                 string MyUrl = args[2];
                 int min_delay = int.Parse(args[3]);
@@ -265,16 +205,17 @@ namespace MainServer
                 const string hostname = "localhost";
                 string startupMessage;
                 ServerPort serverPort;
+                ServerPort pmPort;
                 int serverId;
 
-                Console.WriteLine("Insert an Id for the Server");
+                Console.WriteLine("Insert an Id (2 or 3) for the Server");
                 serverId = Convert.ToInt32(Console.ReadLine());
                 int port = 10000 + serverId;
 
                 //Just for testing
                 string MyId = "Server-" + serverId.ToString();
                 serverPort = new ServerPort(hostname, port, ServerCredentials.Insecure);
-                startupMessage = "Insecure ChatServer server listening on port " + port;
+                startupMessage = "Server " + serverId + "listening on port " + port;
 
 
                 Server server = new Server

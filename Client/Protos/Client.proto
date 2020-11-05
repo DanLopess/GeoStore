@@ -1,14 +1,29 @@
 ﻿syntax = "proto3";
 
+option csharp_namespace = "Clients";
+
+
+
+service ClientService {
+  rpc RecvMsg (RecvMsgRequest) returns (RecvMsgReply);
+}
+
+message RecvMsgRequest {
+  string msg = 1;
+}
+message RecvMsgReply {
+	bool ok = 1;
+}
+
 service ServerService {
 	rpc Write (WriteRequest) returns (WriteResponse);
 	rpc Read (ReadRequest) returns (ReadResponse);
 	rpc ListServer (ListServerRequest) returns (ListServerResponse);
-	rpc ListEachGlobal (ListEachGlobalRequest) returns (ListEachGlobalResponse);
 	rpc ListGlobal (ListGlobalRequest) returns (ListGlobalResponse);
 	rpc Wait (WaitRequest) returns (WaitResponse);
 	rpc BeginRepeat (BeginRepeatRequest) returns (BeginRepeatResponse);
 	rpc EndRepeat (EndRepeatRequest) returns (EndRepeatResponse);
+	
 }
 
 message UniqueKey{
