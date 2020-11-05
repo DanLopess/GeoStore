@@ -45,9 +45,9 @@ namespace PuppetMasterGUI
                 logic.RunScript();
                 LoadCommandPage();
 
-            } catch
+            } catch (Exception ex)
             {
-                MessageBox.Show("Oops! Something went wrong. Please try again!!!");
+                MessageBox.Show("Oops! Something went wrong. Please try again.\n\nException: " + ex.GetType() + "\nMessage: " + ex.Message);
             }
         }
 
