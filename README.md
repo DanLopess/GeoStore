@@ -1,7 +1,7 @@
 ## Design and Implementation of Distributed Applications Project
 
 
-###Authores
+### Authores
 **Group G27**
 | Number | Name              |
 | -----------|----------------|
