@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+service PuppetService {
+	rpc GetStatus (GetNodeStatusRequest) returns (GetNodeStatusReply);
+	rpc ChangeServerState (ChangeServerStateRequest) returns (ChangeServerStateReply);
+	rpc SendMappings (SendMappingsRequest) returns (SendMappingsReply);
+}
+
+message SendMappingsRequest {
+	string replicationFactor = 1; 
+	repeated ServerMapping serverMapping = 2;
+	repeated ClientMapping clientMapping = 3;
+	repeated PartitionMapping partitionMapping = 4;
+}
+
+message SendMappingsReply {
+	bool ok = 1;
+}
+
+message GetNodeStatusRequest {
+	
+}	
+
+message GetNodeStatusReply {
+	bool ok = 1;
+	string response = 2;
+}
+
+message ChangeServerStateRequest {
+	ServerState state = 1;
+}	
+
+message ChangeServerStateReply {
+	bool ok = 1;
+}
+
+enum ServerState {
+	CRASH = 0;
+	FREEZE = 1;
+	UNFREEZE = 2;
+}
+
+message ServerMapping {
+	string serverId = 1;
+	string url = 2;
+}
+
+message ClientMapping {
+	string username = 1;
+	string url = 2;
+}
+
+message PartitionMapping {
+	string partitionId = 1;
+	repeated string serverId = 2;
+}
