@@ -1,0 +1,8 @@
+write Part1 2 "Value-$i"
+write Part1 3 "Values-$i"
+listServer Server-2
+begin-repeat 3
+read Part1 2 3
+end-repeat
+wait 3000
+write Part1 4 "Values-$i"
