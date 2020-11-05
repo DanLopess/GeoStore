@@ -1,5 +1,7 @@
-## Authors
+## Design and Implementation of Distributed Applications Project
 
+
+###Authores
 **Group G27**
 | Number | Name              |
 | -----------|----------------|
@@ -7,7 +9,7 @@
 | 90593  | Diogo Barata      |
 | 90598  | Filipe Rodrigues  |
 
-Design and Implementation of Distributed Applications Project
+
 
 ### Run client and server individually
 
