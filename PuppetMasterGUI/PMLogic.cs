@@ -140,7 +140,8 @@ namespace PuppetMasterGUI
             string[] splittedCommand = command.Split(" ");
             if (splittedCommand.Length == 5)
             {
-                GrpcChannel channel = GrpcChannel.ForAddress(GetPCSUrlFromCommand(splittedCommand[2]));
+                string url = GetPCSUrlFromCommand(splittedCommand[2]);
+                GrpcChannel channel = GrpcChannel.ForAddress(url);
                 PCSServerService.PCSServerServiceClient client = new PCSServerService.PCSServerServiceClient(channel);
                 StartServerProcessRequest request = new StartServerProcessRequest
                 {
