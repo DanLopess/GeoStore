@@ -19,7 +19,7 @@ message SendMappingsReply {
 
 message GetNodeStatusRequest {
 	
-}	
+}	   
 
 message GetNodeStatusReply {
 	bool ok = 1;

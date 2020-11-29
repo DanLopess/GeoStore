@@ -5,12 +5,15 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
+
 
 namespace PuppetMasterGUI
 {
     public class PMLogic
     {
         private const string PCSPort = "10000";
+        private static Exception _Exception = null;
         private string replicationFactor;
         private Dictionary<string, string> serverMapping; // <server_id, url>
         private Dictionary<string, string> clientMapping; // <client_username, url>
@@ -21,6 +24,8 @@ namespace PuppetMasterGUI
             serverMapping = new Dictionary<string, string>();
             clientMapping = new Dictionary<string, string>();
             partitionsMapping = new Dictionary<string, List<string>>();
+            AppContext.SetSwitch(
+            "System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
         }
 
         /// <summary>
@@ -43,50 +48,66 @@ namespace PuppetMasterGUI
         /// <param name="command"></param>
         public void ExecuteCommand(string command)
         {
+            List<Task> tasks = new List<Task>();
+
             if (ContainsCommandIgnoreCase(command, "Wait")) 
             {
                 SleepCommand(command);
             } else if (ContainsCommandIgnoreCase(command, "ReplicationFactor")) 
             {
-                Thread thread = new Thread(() => SetReplicationFactor(command));
-                thread.Start();
+                Task task = Task.Run(() => SetReplicationFactor(command));
+                tasks.Add(task);
             } else if (ContainsCommandIgnoreCase(command, "Client")) {
-                Thread thread = new Thread(() => SendStartClientCommand(command));
-                thread.Start();
+                Task task = Task.Run(() => SendStartClientCommand(command));
+                tasks.Add(task);
             }
             else if (ContainsCommandIgnoreCase(command, "Partition"))
             {
-                Thread thread = new Thread(() => CreatePartitionCommand(command));
-                thread.Start();
+                Task task = Task.Run(() => CreatePartitionCommand(command));
+                tasks.Add(task);
             }
             else if (ContainsCommandIgnoreCase(command, "Server"))
             {
-                Thread thread = new Thread(() => SendStartServerCommand(command));
-                thread.Start();
+                Task task = Task.Run(() => SendStartServerCommand(command));
+                tasks.Add(task);
             }
             else if (ContainsCommandIgnoreCase(command, "Status"))
             {
-                Thread thread = new Thread(() => SendStatusCommand());
-                thread.Start();
+                Task task = Task.Run(() => SendStatusCommand());
+                tasks.Add(task);
             }
             else if (ContainsCommandIgnoreCase(command, "Freeze"))
             {
-                Thread thread = new Thread(() => SendFreezeCommand(command));
-                thread.Start();
+                Task task = Task.Run(() => SendFreezeCommand(command));
+                tasks.Add(task);
             }
             else if (ContainsCommandIgnoreCase(command, "Unfreeze"))
             {
-                Thread thread = new Thread(() => SendUnfreezeCommand(command));
-                thread.Start();
+                Task task = Task.Run(() => SendUnfreezeCommand(command));
+                tasks.Add(task);
             }
             else if (ContainsCommandIgnoreCase(command, "Crash"))
             {
-                Thread thread = new Thread(() => SendCrashCommand(command));
-                thread.Start();
+                Task task = Task.Run(() => SendCrashCommand(command));
+                tasks.Add(task);
             }
             else
             {
                 throw new InvalidCommandException("The specified command is not valid. \nCommand: " + command);
+            }
+
+            if (tasks.Count > 0)
+            {
+                foreach (Task t in tasks)
+                {
+                    t.Wait();
+                }
+
+                // Rethrow exceptions thrown in Tasks
+                if (_Exception != null)
+                {
+                    throw _Exception;
+                }
             }
         }
 
@@ -97,7 +118,7 @@ namespace PuppetMasterGUI
             string[] splittedCommand = command.Split(" ");
             if (splittedCommand.Length == 2)
             {
-                lock (this) { replicationFactor = splittedCommand[1]; }
+                lock (replicationFactor) { replicationFactor = splittedCommand[1]; }
             } else
             {
                 throw new InvalidCommandException("The specified command is not valid. \nCommand: " + command);
@@ -114,48 +135,62 @@ namespace PuppetMasterGUI
             
             if (splittedCommand.Length == 4)
             {
-                GrpcChannel channel = GrpcChannel.ForAddress(GetPCSUrlFromCommand(splittedCommand[2]));
-                PCSServerService.PCSServerServiceClient client = new PCSServerService.PCSServerServiceClient(channel);
-                StartClientProcessRequest request = new StartClientProcessRequest { 
-                    Username = splittedCommand[1], 
-                    Url = splittedCommand[2], 
-                    ScriptFilename = splittedCommand[3]
-                };
-                StartClientProcessReply reply = client.StartClientProcess(request);
-
-                if (reply.Ok)
+                string url = GetPCSUrlFromCommand(splittedCommand[2]);
+                if (url != null)
                 {
-                    lock (this) { clientMapping.TryAdd(splittedCommand[1], splittedCommand[2]); }
-                    // Only add to mappings if node started correctly
-                } 
+                    GrpcChannel channel = GrpcChannel.ForAddress(url);
+                    PCSServerService.PCSServerServiceClient client = new PCSServerService.PCSServerServiceClient(channel);
+                    StartClientProcessRequest request = new StartClientProcessRequest
+                    {
+                        Username = splittedCommand[1],
+                        Url = splittedCommand[2],
+                        ScriptFilename = splittedCommand[3]
+                    };
+                    StartClientProcessReply reply = client.StartClientProcess(request);
+
+                    if (reply.Ok)
+                    {
+                        lock (clientMapping) { clientMapping.TryAdd(splittedCommand[1], splittedCommand[2]); }
+                        // Only add to mappings if node started correctly
+                    } else
+                    {
+                        _Exception = new PCSNotOKException("PCS returned a NOT OK message.");
+                    }
+                }
             }
         }
 
         /// <summary>
         /// Method for sending a command to a PCS terminal that will initiate a new Server process
         /// </summary>
-        /// <param name="command"></param>
+        /// <param name="command">Server s2 http://localhost:4000 100 300</param>
         private void SendStartServerCommand(string command)
         {
             string[] splittedCommand = command.Split(" ");
             if (splittedCommand.Length == 5)
             {
                 string url = GetPCSUrlFromCommand(splittedCommand[2]);
-                GrpcChannel channel = GrpcChannel.ForAddress(url);
-                PCSServerService.PCSServerServiceClient client = new PCSServerService.PCSServerServiceClient(channel);
-                StartServerProcessRequest request = new StartServerProcessRequest
-                {
-                    ServerId = splittedCommand[1],
-                    Url = splittedCommand[2],
-                    MinDelay = splittedCommand[3],
-                    MaxDelay = splittedCommand[4]
-                };
-                StartServerProcessReply reply = client.StartServerProcess(request);
+                if (url != null) { 
+                    GrpcChannel channel = GrpcChannel.ForAddress(url);
+                    PCSServerService.PCSServerServiceClient client = new PCSServerService.PCSServerServiceClient(channel);
+                    StartServerProcessRequest request = new StartServerProcessRequest
+                    {
+                        ServerId = splittedCommand[1],
+                        Url = splittedCommand[2],
+                        MinDelay = splittedCommand[3],
+                        MaxDelay = splittedCommand[4]
+                    };
+                    StartServerProcessReply reply = client.StartServerProcess(request);
 
-                if (reply.Ok)
-                {
-                    lock (this) { serverMapping.TryAdd(splittedCommand[1], splittedCommand[2]); }
-                    // Only add to mappings if node started correctly
+                    if (reply.Ok)
+                    {
+                        lock (serverMapping) { serverMapping.TryAdd(splittedCommand[1], splittedCommand[2]); }
+                        // Only add to mappings if node started correctly
+                    }
+                    else
+                    {
+                        _Exception = new PCSNotOKException("PCS returned a NOT OK message.");
+                    }
                 }
             }
         }
@@ -176,7 +211,7 @@ namespace PuppetMasterGUI
                     replicas.Add(splittedCommand[i]);
                 }
 
-                lock(this) { partitionsMapping.TryAdd(partitionId, replicas); }
+                lock(partitionsMapping) { partitionsMapping.TryAdd(partitionId, replicas); }
             }
         }
 
@@ -184,15 +219,15 @@ namespace PuppetMasterGUI
         /// Method for sending a command to a node to obtain its Status
         /// </summary>
         /// <param name="command"></param>
-        private void SendStatusCommand()
+        public void SendStatusCommand()
         {
-            // Send status, ignore reply for now, eventually show the status response...
+            // TODO Send status, ignore reply for now, eventually show the status response...
             foreach (KeyValuePair<string, string> entry in serverMapping)
             {
                 GetNodeStatusReply reply = SendStatusRequest(entry.Value);
             }
 
-            foreach (KeyValuePair<string, string> entry in serverMapping)
+            foreach (KeyValuePair<string, string> entry in clientMapping)
             {
                 GetNodeStatusReply reply = SendStatusRequest(entry.Value);
             }
@@ -202,20 +237,23 @@ namespace PuppetMasterGUI
         /// Method for sending a command to a server process and terminate it
         /// </summary>
         /// <param name="command"></param>
-        private void SendCrashCommand(string command)
+        public void SendCrashCommand(string command)
         {
             string[] splittedCommand = command.Split(" ");
             if (splittedCommand.Length == 2)
             {
-                string url = GetServerUrl(splittedCommand[1]);
-                GrpcChannel channel = GrpcChannel.ForAddress(GetPCSUrlFromCommand(url));
-                PuppetService.PuppetServiceClient client = new PuppetService.PuppetServiceClient(channel);
-                ChangeServerStateRequest request = new ChangeServerStateRequest
+                string url = GetPCSUrlFromCommand(splittedCommand[1]);
+                if (url != null)
                 {
-                    State = ServerState.Crash
-                };
+                    GrpcChannel channel = GrpcChannel.ForAddress(GetPCSUrlFromCommand(url));
+                    PuppetService.PuppetServiceClient client = new PuppetService.PuppetServiceClient(channel);
+                    ChangeServerStateRequest request = new ChangeServerStateRequest
+                    {
+                        State = ServerState.Crash
+                    };
 
-                client.ChangeServerState(request);
+                    client.ChangeServerState(request);
+                }
             }
         }
 
@@ -223,20 +261,23 @@ namespace PuppetMasterGUI
         /// Method for sending a command to a server and freeze it (lock)
         /// </summary>
         /// <param name="command"></param>
-        private void SendFreezeCommand(string command)
+        public void SendFreezeCommand(string command)
         {
             string[] splittedCommand = command.Split(" ");
             if (splittedCommand.Length == 2)
             {
-                string url = GetServerUrl(splittedCommand[1]);
-                GrpcChannel channel = GrpcChannel.ForAddress(GetPCSUrlFromCommand(url));
-                PuppetService.PuppetServiceClient client = new PuppetService.PuppetServiceClient(channel);
-                ChangeServerStateRequest request = new ChangeServerStateRequest
+                string url = GetPCSUrlFromCommand(splittedCommand[1]);
+                if (url != null)
                 {
-                    State = ServerState.Freeze
-                };
+                    GrpcChannel channel = GrpcChannel.ForAddress(GetPCSUrlFromCommand(url));
+                    PuppetService.PuppetServiceClient client = new PuppetService.PuppetServiceClient(channel);
+                    ChangeServerStateRequest request = new ChangeServerStateRequest
+                    {
+                        State = ServerState.Freeze
+                    };
 
-                client.ChangeServerState(request);
+                    client.ChangeServerState(request);
+                }
             }
         }
 
@@ -244,20 +285,23 @@ namespace PuppetMasterGUI
         /// Method for sending a command to a server and unfreeze it (unlock)
         /// </summary>
         /// <param name="command"></param>
-        private void SendUnfreezeCommand(string command)
+        public void SendUnfreezeCommand(string command)
         {
             string[] splittedCommand = command.Split(" ");
             if (splittedCommand.Length == 2)
             {
-                string url = GetServerUrl(splittedCommand[1]);
-                GrpcChannel channel = GrpcChannel.ForAddress(GetPCSUrlFromCommand(url));
-                PuppetService.PuppetServiceClient client = new PuppetService.PuppetServiceClient(channel);
-                ChangeServerStateRequest request = new ChangeServerStateRequest
+                string url = GetPCSUrlFromCommand(splittedCommand[1]);
+                if (url != null)
                 {
-                    State = ServerState.Unfreeze
-                };
+                    GrpcChannel channel = GrpcChannel.ForAddress(GetPCSUrlFromCommand(url));
+                    PuppetService.PuppetServiceClient client = new PuppetService.PuppetServiceClient(channel);
+                    ChangeServerStateRequest request = new ChangeServerStateRequest
+                    {
+                        State = ServerState.Unfreeze
+                    };
 
-                client.ChangeServerState(request);
+                    client.ChangeServerState(request);
+                }
             }
         }
 
@@ -300,7 +344,7 @@ namespace PuppetMasterGUI
                 }
 
                 // Then Send to Client
-                foreach (KeyValuePair<string, string> entry in serverMapping)
+                foreach (KeyValuePair<string, string> entry in clientMapping)
                 {
                     SendMapping(entry.Value);
                 }
@@ -315,7 +359,7 @@ namespace PuppetMasterGUI
         // ===== Auxiliary methods ====
         private GetNodeStatusReply SendStatusRequest(string url)
         {
-            GrpcChannel channel = GrpcChannel.ForAddress(GetPCSUrlFromCommand(url));
+            GrpcChannel channel = GrpcChannel.ForAddress(url);
             PuppetService.PuppetServiceClient client = new PuppetService.PuppetServiceClient(channel);
             GetNodeStatusRequest request = new GetNodeStatusRequest();
             return client.GetStatus(request);
@@ -406,13 +450,31 @@ namespace PuppetMasterGUI
 
         private string GetPCSUrlFromCommand(string url)
         {
-            string[] splittedURL = url.Split(":"); // Assuming url is correctly written
-            return splittedURL[0] + ':' + splittedURL[1] + ':' + PCSPort; // build http://localhost:10000 for example
+            if (url == null) return null;
+
+            string[] splittedURL = url.Split(":");
+            
+            if (splittedURL.Length.Equals(3)) 
+                return splittedURL[0] + ':' + splittedURL[1] + ':' + PCSPort; // build http://localhost:10000 for example
+            else 
+                return null;
         }
 
         private string GetServerUrl(string serverId)
         {
             return serverMapping.GetValueOrDefault(serverId);
+        }
+
+        public List<string> GetServerIdsList()
+        {
+            List<string> servers = new List<string>();
+
+            foreach (KeyValuePair<string, string> entry in serverMapping)
+            {
+                servers.Add(entry.Key);
+            }
+
+            return servers;
         }
     }
 }

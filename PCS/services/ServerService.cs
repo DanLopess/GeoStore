@@ -11,7 +11,6 @@ namespace PCS.services
 {
     class ServerService : PCSServerService.PCSServerServiceBase
     {
-        private GrpcChannel channel;
         private PCSServerLogic logic;
 
         public ServerService(PCSServerLogic serverLogic) {
@@ -38,53 +37,34 @@ namespace PCS.services
         // ==== Implementation ====
         public StartClientProcessReply StartClient(StartClientProcessRequest request)
         {
-            channel = GrpcChannel.ForAddress(request.Url);
-
             try
             {
-                lock (this)
-                {
-                    logic.StartClient(request);
-                }
+                return logic.StartClient(request);
+
             } catch (Exception e)
              {
-                Console.WriteLine("Some error ocurred while starting client process: {}", e);
+                Console.WriteLine("Some error ocurred while starting client process: {}", e.Message);
                 return new StartClientProcessReply
                 {
                     Ok = false
                 };
             }
-            
-            return new StartClientProcessReply
-            {
-                Ok = true
-            };
         }
 
         public StartServerProcessReply StartServer(StartServerProcessRequest request)
         {
-            channel = GrpcChannel.ForAddress(request.Url);
-
             try
             {
-                lock (this)
-                {
-                    logic.StartServer(request);
-                }
+                return logic.StartServer(request);
             }
             catch (Exception e)
             {
-                Console.WriteLine("Some error ocurred while starting server process: {}", e);
+                Console.WriteLine("Some error ocurred while starting server process: {}", e.Message);
                 return new StartServerProcessReply
                 {
                     Ok = false
                 };
             }
-
-            return new StartServerProcessReply
-            {
-                Ok = true
-            };
         }
     }
 }
