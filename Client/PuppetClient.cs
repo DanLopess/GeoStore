@@ -8,10 +8,10 @@ using System.Threading.Tasks;
 namespace Clients
 { 
     public class PuppetClient:PuppetService.PuppetServiceBase{
-        List <ServerMapping> serverMappings;
-        List<ClientMapping> clientMappings;
-        List<PartitionMapping> partitionMappings;
-        bool hasReceivedMappings;
+        private List<ServerMapping> serverMappings;
+        private List<ClientMapping> clientMappings;
+        private List<PartitionMapping> partitionMappings;
+        public bool hasReceivedMappings { get; set; }
         public PuppetClient()
         {
           hasReceivedMappings = false;
@@ -38,6 +38,7 @@ namespace Clients
         {
             return Task.FromResult(getStatus());
         }
+        
         public GetNodeStatusReply getStatus()
         {
             return new GetNodeStatusReply { Ok = true, Response = "Client running" };

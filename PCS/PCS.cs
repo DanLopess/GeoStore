@@ -102,7 +102,7 @@ namespace PCS
     class Program
     {
         private const int PCSPort = 10000;
-        private const string hostname = "localhost";
+        private const string hostname = "127.0.0.1";
 
         static void Main(string[] args)
         {
