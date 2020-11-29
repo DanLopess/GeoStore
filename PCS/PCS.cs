@@ -6,67 +6,93 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Collections;
 using System.Linq;
+using System.IO;
 
 namespace PCS
 {
     public class PCSServerLogic
     {
         private List<Process> clientsAndServers;
-        private string clientFilename = "client.exe";
-        private string serverFilename = "server.exe";
+        private string clientFilename;
+        private string serverFilename;
 
 
         public PCSServerLogic(){
             clientsAndServers = new List<Process>();
         }
 
-        public void StartClient(StartClientProcessRequest request)
+        public StartClientProcessReply StartClient(StartClientProcessRequest request)
         {
-            // Prepare the process to run
-            ProcessStartInfo start = new ProcessStartInfo();
-
-            List<string> arguments = new List<string> { request.Username, request.Url, request.ScriptFilename };
-            string argumentString = string.Join(" ", arguments.Select(x => x.ToString()).ToArray());
-            start.Arguments = argumentString;
-            start.FileName = clientFilename;
-            start.WindowStyle = ProcessWindowStyle.Normal;
-
-            //start.CreateNoWindow = true;  === In case of needing to hide window
-
-            // Run the external process
-            using Process proc = Process.Start(start);
-            clientsAndServers.Add(proc);
-            Console.WriteLine("Started new client with Username:%s and URL:%s", request.Username, request.Url);
-        }
-
-        public void StartServer(StartServerProcessRequest request)
-        {
-            // Prepare the process to run
-            ProcessStartInfo start = new ProcessStartInfo();
-
-            List<string> arguments = new List<string> { request.ServerId, 
-                request.Url, request.MinDelay, request.MaxDelay };
-            string argumentString = String.Join(" ", arguments);
-            start.Arguments = argumentString;
-            start.FileName = serverFilename;
-            start.WindowStyle = ProcessWindowStyle.Normal;
-
-            //start.CreateNoWindow = true;  === In case of needing to hide window
-
-            // Run the external process
-            using Process proc = Process.Start(start);
-            clientsAndServers.Add(proc);
-
-            Console.WriteLine("Started new server with serverId:%s and URL:%s",request.ServerId, request.Url);
-        }
-
-        public void TerminateAllProcesses()
-        {
-            clientsAndServers.ForEach(p =>
+            if (File.Exists(clientFilename))
             {
-                p.Kill();
-                p.WaitForExit();
-            });
+                // Prepare the process to run
+                ProcessStartInfo start = new ProcessStartInfo();
+
+                List<string> arguments = new List<string> { request.Username, request.Url, request.ScriptFilename };
+                string argumentString = string.Join(" ", arguments.Select(x => x.ToString()).ToArray());
+                start.Arguments = argumentString;
+                start.FileName = clientFilename;
+                start.WindowStyle = ProcessWindowStyle.Normal;
+                start.UseShellExecute = true;
+                start.CreateNoWindow = false;
+
+                //start.CreateNoWindow = true;  === In case of needing to hide window
+
+                // Run the external process
+                using Process proc = Process.Start(start);
+                clientsAndServers.Add(proc);
+                Console.WriteLine($"Started new client with Username:{request.Username} and URL:{request.Url}");
+
+                return new StartClientProcessReply
+                {
+                    Ok = true
+                };
+            }
+            {
+                Console.WriteLine("Could not run new client process.");
+                return new StartClientProcessReply
+                {
+                    Ok = false
+                };
+            }
+        }
+
+        public StartServerProcessReply StartServer(StartServerProcessRequest request)
+        {
+            if (File.Exists(serverFilename))
+            {
+                // Prepare the process to run
+                ProcessStartInfo start = new ProcessStartInfo();
+
+                List<string> arguments = new List<string> { request.ServerId,
+                request.Url, request.MinDelay, request.MaxDelay };
+                string argumentString = String.Join(" ", arguments);
+                start.Arguments = argumentString;
+                start.FileName = serverFilename;
+                start.WindowStyle = ProcessWindowStyle.Normal;
+                start.UseShellExecute = true;
+                start.CreateNoWindow = false;
+
+                //start.CreateNoWindow = true;  === In case of needing to hide window
+
+                // Run the external process
+                using Process proc = Process.Start(start);
+                clientsAndServers.Add(proc);
+
+                Console.WriteLine($"Started new server with serverId: {request.ServerId} and URL: {request.Url}");
+
+                return new StartServerProcessReply
+                {
+                    Ok = true
+                };
+            } else
+            {
+                Console.WriteLine("Could not run new server process.");
+                return new StartServerProcessReply
+                {
+                    Ok = false
+                };
+            }
         }
 
         public void SetServerFilename(string filename) { this.serverFilename = filename; }
@@ -76,7 +102,7 @@ namespace PCS
     class Program
     {
         private const int PCSPort = 10000;
-        private const string hostname = "localhost";
+        private const string hostname = "127.0.0.1";
 
         static void Main(string[] args)
         {
@@ -115,7 +141,6 @@ namespace PCS
             Console.ReadKey();
 
             server.ShutdownAsync().Wait();
-            logic.TerminateAllProcesses();
         }
     }
 }
