@@ -13,8 +13,8 @@ namespace PCS
     public class PCSServerLogic
     {
         private List<Process> clientsAndServers;
-        private string clientFilename = "client.exe";
-        private string serverFilename = "server.exe";
+        private string clientFilename;
+        private string serverFilename;
 
 
         public PCSServerLogic(){
@@ -23,7 +23,7 @@ namespace PCS
 
         public StartClientProcessReply StartClient(StartClientProcessRequest request)
         {
-            if (File.Exists(serverFilename) && File.Exists(request.ScriptFilename))
+            if (File.Exists(clientFilename))
             {
                 // Prepare the process to run
                 ProcessStartInfo start = new ProcessStartInfo();

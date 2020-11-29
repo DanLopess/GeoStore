@@ -37,8 +37,7 @@ namespace PuppetMasterGUI
 
             commands.ForEach(command => ExecuteCommand(command));
 
-            // TODO uncomment this
-            //SendMappingsToAll();            
+            SendMappingsToAll();            
         }
 
         /// <summary>
@@ -74,8 +73,8 @@ namespace PuppetMasterGUI
             }
             else if (ContainsCommandIgnoreCase(command, "Status"))
             {
-/*                Task task = Task.Run(() => SendStatusCommand());
-                tasks.Add(task);*/
+                Task task = Task.Run(() => SendStatusCommand());
+                tasks.Add(task);
             }
             else if (ContainsCommandIgnoreCase(command, "Freeze"))
             {
@@ -119,7 +118,7 @@ namespace PuppetMasterGUI
             string[] splittedCommand = command.Split(" ");
             if (splittedCommand.Length == 2)
             {
-                lock (this) { replicationFactor = splittedCommand[1]; }
+                lock (replicationFactor) { replicationFactor = splittedCommand[1]; }
             } else
             {
                 throw new InvalidCommandException("The specified command is not valid. \nCommand: " + command);
@@ -151,7 +150,7 @@ namespace PuppetMasterGUI
 
                     if (reply.Ok)
                     {
-                        lock (this) { clientMapping.TryAdd(splittedCommand[1], splittedCommand[2]); }
+                        lock (clientMapping) { clientMapping.TryAdd(splittedCommand[1], splittedCommand[2]); }
                         // Only add to mappings if node started correctly
                     } else
                     {
@@ -185,7 +184,7 @@ namespace PuppetMasterGUI
 
                     if (reply.Ok)
                     {
-                        lock (this) { serverMapping.TryAdd(splittedCommand[1], splittedCommand[2]); }
+                        lock (serverMapping) { serverMapping.TryAdd(splittedCommand[1], splittedCommand[2]); }
                         // Only add to mappings if node started correctly
                     }
                     else
@@ -212,7 +211,7 @@ namespace PuppetMasterGUI
                     replicas.Add(splittedCommand[i]);
                 }
 
-                lock(this) { partitionsMapping.TryAdd(partitionId, replicas); }
+                lock(partitionsMapping) { partitionsMapping.TryAdd(partitionId, replicas); }
             }
         }
 
@@ -228,7 +227,7 @@ namespace PuppetMasterGUI
                 GetNodeStatusReply reply = SendStatusRequest(entry.Value);
             }
 
-            foreach (KeyValuePair<string, string> entry in serverMapping)
+            foreach (KeyValuePair<string, string> entry in clientMapping)
             {
                 GetNodeStatusReply reply = SendStatusRequest(entry.Value);
             }
@@ -345,7 +344,7 @@ namespace PuppetMasterGUI
                 }
 
                 // Then Send to Client
-                foreach (KeyValuePair<string, string> entry in serverMapping)
+                foreach (KeyValuePair<string, string> entry in clientMapping)
                 {
                     SendMapping(entry.Value);
                 }
@@ -360,7 +359,7 @@ namespace PuppetMasterGUI
         // ===== Auxiliary methods ====
         private GetNodeStatusReply SendStatusRequest(string url)
         {
-            GrpcChannel channel = GrpcChannel.ForAddress(GetPCSUrlFromCommand(url));
+            GrpcChannel channel = GrpcChannel.ForAddress(url);
             PuppetService.PuppetServiceClient client = new PuppetService.PuppetServiceClient(channel);
             GetNodeStatusRequest request = new GetNodeStatusRequest();
             return client.GetStatus(request);

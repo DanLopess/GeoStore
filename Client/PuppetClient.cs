@@ -11,10 +11,12 @@ namespace Clients
         private List<ServerMapping> serverMappings;
         private List<ClientMapping> clientMappings;
         private List<PartitionMapping> partitionMappings;
+        private Client client;
         public bool hasReceivedMappings { get; set; }
-        public PuppetClient()
+        public PuppetClient(Client client)
         {
-          hasReceivedMappings = false;
+            hasReceivedMappings = false;
+            this.client = client;
         }
         
         public override Task<SendMappingsReply> SendMappings(SendMappingsRequest request, ServerCallContext context)
@@ -27,6 +29,10 @@ namespace Clients
             this.serverMappings = request.ServerMapping.ToList();
             this.clientMappings = request.ClientMapping.ToList();
             this.partitionMappings = request.PartitionMapping.ToList();
+
+            client.SetDataCenter(getDataCenter());
+            client.SetClientList(getClientList());
+            client.SetServerList(getServerList());
 
             this.hasReceivedMappings = true;
             return new SendMappingsReply { Ok = true} ; 
@@ -41,8 +47,8 @@ namespace Clients
         
         public GetNodeStatusReply getStatus()
         {
+            Console.WriteLine("Sent Status");
             return new GetNodeStatusReply { Ok = true, Response = "Client running" };
-
         }
 
         public Dictionary<string,string> getServerList()

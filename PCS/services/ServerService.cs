@@ -39,11 +39,8 @@ namespace PCS.services
         {
             try
             {
-                logic.StartClient(request);
-                return new StartClientProcessReply
-                {
-                    Ok = true
-                };
+                return logic.StartClient(request);
+
             } catch (Exception e)
              {
                 Console.WriteLine("Some error ocurred while starting client process: {}", e.Message);

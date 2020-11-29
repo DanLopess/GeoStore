@@ -21,13 +21,13 @@ namespace Clients
         private string[] lines;
 
         // ServerList = <serverId, URL>
-        private Dictionary<string, string> ServerList = new Dictionary<string, string>();
+        public Dictionary<string, string> ServerList = new Dictionary<string, string>();
         // DataCenter = <partitionId, List<serverId>>
-        private Dictionary<string, List<string>> DataCenter = new Dictionary<string, List<string>>();
+        public Dictionary<string, List<string>> DataCenter = new Dictionary<string, List<string>>();
         //ClientList= <username,URL>
-        private Dictionary<string, string> ClientList = new Dictionary<string, string>();
+        public Dictionary<string, string> ClientList = new Dictionary<string, string>();
 
-        public Client(String client_username, String client_URL, String script_file)
+        public Client(string client_username, string client_URL, string script_file)
         {
             AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 
@@ -36,6 +36,20 @@ namespace Clients
             lines = File.ReadAllLines(script_file);
 
             Console.WriteLine($"Client {username} started at {myURL}");
+        }
+
+        // DELETE THIS
+        public void printMappings()
+        {
+            foreach (KeyValuePair<string, string> entry in ClientList)
+            {
+                Console.WriteLine($"Client {entry.Key} with URL: {entry.Value}");
+            }
+            foreach (KeyValuePair<string, List<String>> entry in DataCenter)
+            {
+                string servers = String.Join(", ", entry.Value.ToArray());
+                Console.WriteLine($"Partition {entry.Key} with Servers: {servers}");
+            }
         }
 
         public string getServerId()
@@ -164,13 +178,17 @@ namespace Clients
         public void CheckMaster(string partitionId, string objectId, string value, int beginRepeat)
         {
             string server_id = getServerId();
-            if (!DataCenter[partitionId][0].Equals(server_id))
+
+            lock (DataCenter)
             {
-                SetCurrentServer(ServerList[server_id]);
-                ConnectToServer();
+                if (!DataCenter[partitionId][0].Equals(server_id))
+                {
+                    server_id = DataCenter[partitionId][0];
+                    SetCurrentServer(ServerList[server_id]);
+                    ConnectToServer();
+                }
             }
             Write(partitionId, objectId, value, beginRepeat);
-
         }
         public WriteResponse Write(string partitionId, string objectId, string value, int beginRepeat)
         {
@@ -291,6 +309,31 @@ namespace Clients
 
             return count;
         }
+
+        public void SetDataCenter(Dictionary<string, List<string>> DataCenter)
+        {
+            lock(DataCenter)
+            {
+                this.DataCenter = DataCenter;
+            }
+        }
+
+        public void SetServerList(Dictionary<string, string> Servers)
+        {
+            lock (ServerList)
+            {
+                this.ServerList = Servers;
+            }
+        }
+
+        public void SetClientList(Dictionary<string, string> Clients)
+        {
+            lock (ClientList)
+            {
+                this.ClientList = Clients;
+            }
+        }
+
         public static class Program
         {
             /// <summary>
@@ -314,8 +357,9 @@ namespace Clients
                         int port = int.Parse(splittedURL[2]);
 
                         ServerPort serverPort = new ServerPort(hostname, port, ServerCredentials.Insecure);
-
-                        PuppetClient puppetClient = new PuppetClient();
+                        Client client = new Client(username, URL, script);
+                       
+                        PuppetClient puppetClient = new PuppetClient(client);
 
                         Server server = new Server
                         {
@@ -325,22 +369,47 @@ namespace Clients
 
                         server.Start();
 
+                        Client client = new Client(username, URL, script);
+
                         while (true)
                         {
                             if (puppetClient.hasReceivedMappings)
                             {
-                                Client client = new Client(username, URL, script);
+                                client = new Client(username, URL, script);
                                 client.DataCenter = puppetClient.getDataCenter();
                                 client.ClientList = puppetClient.getClientList();
                                 client.ServerList = puppetClient.getServerList();
 
+                                client.printMappings();
+
+                                Console.WriteLine("Mappings received");
+
                                 client.parseInputFile();
+
+                                Console.WriteLine("Input file executed.");
+
+                                puppetClient.hasReceivedMappings = false;
 
                                 break;
                             }
+                        }
+
+                        while (true)
+                        {
+                            if (puppetClient.hasReceivedMappings)
+                            {
+                                client.DataCenter = puppetClient.getDataCenter();
+                                client.ClientList = puppetClient.getClientList();
+                                client.ServerList = puppetClient.getServerList();
+
+                                client.printMappings();
+
+                                Console.WriteLine("Mappings received");
+
+                                puppetClient.hasReceivedMappings = false;
+                            }
                         }                    
 
-                        while (true) ;
                     } else
                     {
                         Console.WriteLine("Received invalid arguments.");
@@ -349,7 +418,7 @@ namespace Clients
                     
                 } else
                 {
-                    Console.WriteLine("Received invalid arguments.");
+                    Console.WriteLine("No arguments received.");
                     Console.ReadKey();
                 }
             }

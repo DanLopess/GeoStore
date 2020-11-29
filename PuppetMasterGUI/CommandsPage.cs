@@ -70,7 +70,7 @@ namespace PuppetMasterGUI
         private void StatusButton_Click(object sender, EventArgs e)
         {
             // TODO fix status command on server side
-            //logic.SendStatusCommand();
+            logic.SendStatusCommand();
         }
 
         private void ServerIdLabel_Click(object sender, EventArgs e)
