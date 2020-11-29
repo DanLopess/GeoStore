@@ -3,6 +3,9 @@
     "ChatServer": {
       "commandName": "Project",
       "commandLineArgs": "no-sec"
+    },
+    "ChatClient": {
+      "commandName": "Executable"
     }
   }
 }

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Collections;
 using System.Linq;
+using System.IO;
 
 namespace PCS
 {
@@ -20,44 +21,78 @@ namespace PCS
             clientsAndServers = new List<Process>();
         }
 
-        public void StartClient(StartClientProcessRequest request)
+        public StartClientProcessReply StartClient(StartClientProcessRequest request)
         {
-            // Prepare the process to run
-            ProcessStartInfo start = new ProcessStartInfo();
+            if (File.Exists(serverFilename) && File.Exists(request.ScriptFilename))
+            {
+                // Prepare the process to run
+                ProcessStartInfo start = new ProcessStartInfo();
 
-            List<string> arguments = new List<string> { request.Username, request.Url, request.ScriptFilename };
-            string argumentString = string.Join(" ", arguments.Select(x => x.ToString()).ToArray());
-            start.Arguments = argumentString;
-            start.FileName = clientFilename;
-            start.WindowStyle = ProcessWindowStyle.Normal;
+                List<string> arguments = new List<string> { request.Username, request.Url, request.ScriptFilename };
+                string argumentString = string.Join(" ", arguments.Select(x => x.ToString()).ToArray());
+                start.Arguments = argumentString;
+                start.FileName = clientFilename;
+                start.WindowStyle = ProcessWindowStyle.Normal;
+                start.UseShellExecute = true;
+                start.CreateNoWindow = false;
 
-            //start.CreateNoWindow = true;  === In case of needing to hide window
+                //start.CreateNoWindow = true;  === In case of needing to hide window
 
-            // Run the external process
-            using Process proc = Process.Start(start);
-            clientsAndServers.Add(proc);
-            Console.WriteLine("Started new client with Username:%s and URL:%s", request.Username, request.Url);
+                // Run the external process
+                using Process proc = Process.Start(start);
+                clientsAndServers.Add(proc);
+                Console.WriteLine($"Started new client with Username:{request.Username} and URL:{request.Url}");
+
+                return new StartClientProcessReply
+                {
+                    Ok = true
+                };
+            }
+            {
+                Console.WriteLine("Could not run new client process.");
+                return new StartClientProcessReply
+                {
+                    Ok = false
+                };
+            }
         }
 
-        public void StartServer(StartServerProcessRequest request)
+        public StartServerProcessReply StartServer(StartServerProcessRequest request)
         {
-            // Prepare the process to run
-            ProcessStartInfo start = new ProcessStartInfo();
+            if (File.Exists(serverFilename))
+            {
+                // Prepare the process to run
+                ProcessStartInfo start = new ProcessStartInfo();
 
-            List<string> arguments = new List<string> { request.ServerId, 
+                List<string> arguments = new List<string> { request.ServerId,
                 request.Url, request.MinDelay, request.MaxDelay };
-            string argumentString = String.Join(" ", arguments);
-            start.Arguments = argumentString;
-            start.FileName = serverFilename;
-            start.WindowStyle = ProcessWindowStyle.Normal;
+                string argumentString = String.Join(" ", arguments);
+                start.Arguments = argumentString;
+                start.FileName = serverFilename;
+                start.WindowStyle = ProcessWindowStyle.Normal;
+                start.UseShellExecute = true;
+                start.CreateNoWindow = false;
 
-            //start.CreateNoWindow = true;  === In case of needing to hide window
+                //start.CreateNoWindow = true;  === In case of needing to hide window
 
-            // Run the external process
-            using Process proc = Process.Start(start);
-            clientsAndServers.Add(proc);
+                // Run the external process
+                using Process proc = Process.Start(start);
+                clientsAndServers.Add(proc);
 
-            Console.WriteLine("Started new server with serverId:%s and URL:%s",request.ServerId, request.Url);
+                Console.WriteLine($"Started new server with serverId: {request.ServerId} and URL: {request.Url}");
+
+                return new StartServerProcessReply
+                {
+                    Ok = true
+                };
+            } else
+            {
+                Console.WriteLine("Could not run new server process.");
+                return new StartServerProcessReply
+                {
+                    Ok = false
+                };
+            }
         }
 
         public void TerminateAllProcesses()
