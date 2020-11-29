@@ -37,6 +37,8 @@
             this.StatusButton = new System.Windows.Forms.Button();
             this.ServerList = new System.Windows.Forms.ListBox();
             this.serverListLabel = new System.Windows.Forms.Label();
+            this.StatusLabel = new System.Windows.Forms.Label();
+            this.ServerIdLabel = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // ServerIdTextbox
@@ -52,7 +54,7 @@
             // 
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Segoe UI", 18F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            this.label1.Location = new System.Drawing.Point(131, 81);
+            this.label1.Location = new System.Drawing.Point(120, 83);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(156, 41);
             this.label1.TabIndex = 1;
@@ -134,11 +136,32 @@
             this.serverListLabel.TabIndex = 8;
             this.serverListLabel.Text = "Servers List";
             // 
+            // StatusLabel
+            // 
+            this.StatusLabel.AutoSize = true;
+            this.StatusLabel.Location = new System.Drawing.Point(73, 191);
+            this.StatusLabel.Name = "StatusLabel";
+            this.StatusLabel.Size = new System.Drawing.Size(0, 20);
+            this.StatusLabel.TabIndex = 9;
+            // 
+            // ServerIdLabel
+            // 
+            this.ServerIdLabel.AutoSize = true;
+            this.ServerIdLabel.Font = new System.Drawing.Font("Segoe UI", 10.2F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+            this.ServerIdLabel.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(192)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
+            this.ServerIdLabel.Location = new System.Drawing.Point(73, 191);
+            this.ServerIdLabel.Name = "ServerIdLabel";
+            this.ServerIdLabel.Size = new System.Drawing.Size(0, 23);
+            this.ServerIdLabel.TabIndex = 10;
+            this.ServerIdLabel.Click += new System.EventHandler(this.ServerIdLabel_Click);
+            // 
             // CommandsPage
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(518, 323);
+            this.Controls.Add(this.ServerIdLabel);
+            this.Controls.Add(this.StatusLabel);
             this.Controls.Add(this.serverListLabel);
             this.Controls.Add(this.ServerList);
             this.Controls.Add(this.StatusButton);
@@ -168,5 +191,7 @@
         private System.Windows.Forms.Button StatusButton;
         private System.Windows.Forms.ListBox ServerList;
         private System.Windows.Forms.Label serverListLabel;
+        private System.Windows.Forms.Label StatusLabel;
+        private System.Windows.Forms.Label ServerIdLabel;
     }
 }

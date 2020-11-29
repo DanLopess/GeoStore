@@ -79,8 +79,8 @@ namespace PuppetMasterGUI
             }
             else if (ContainsCommandIgnoreCase(command, "Freeze"))
             {
-                /*Task task = Task.Run(() => SendFreezeCommand(command));
-                tasks.Add(task);*/
+                Task task = Task.Run(() => SendFreezeCommand(command));
+                tasks.Add(task);
             }
             else if (ContainsCommandIgnoreCase(command, "Unfreeze"))
             {
@@ -104,6 +104,7 @@ namespace PuppetMasterGUI
                     t.Wait();
                 }
 
+                // Rethrow exceptions thrown in Tasks
                 if (_Exception != null)
                 {
                     throw _Exception;
