@@ -163,10 +163,14 @@ namespace MainServer
         public ListEachGlobalResponse listEachGlobal(ListEachGlobalRequest request){
             var listEachGlobalResponse = new ListEachGlobalResponse();
             lock(StorageSystem){
+                //GlobalStructure gStruct = new GlobalStructure();
                 foreach (var item in StorageSystem){
                     UniqueKey uKey = item.Key;
+                    //Trocar
+                    //gStruct.UniqueKeyList.Add(uKey);
                     listEachGlobalResponse.UniqueKeyList.Add(uKey);
                 }
+                //listEachGlobalResponse.globalList.Add(gStruct);
             }
             return listEachGlobalResponse;
         }
@@ -182,10 +186,14 @@ namespace MainServer
             tmpListServer.Remove(MyId);
 
             lock(StorageSystem){
+                //GlobalStructure gStruct = new GlobalStructure();
                 foreach (var item in StorageSystem){
                     UniqueKey uKey = item.Key;
+                    //Trocar
+                    //gStruct.UniqueKeyList.Add(uKey);
                     listGlobalResponse.UniqueKeyList.Add(uKey);
                 }
+                //listGlobalResponse.globalList.Add(gStruct);
             }
 
             foreach (var item in tmpListServer) {
