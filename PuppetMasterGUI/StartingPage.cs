@@ -35,10 +35,6 @@ namespace PuppetMasterGUI
 
         private void runScriptButton_Click(object sender, EventArgs e)
         {
-            if (configurationPath.Text == "")
-            {
-
-            }
             logic.scriptFilename = configurationPath.Text;
             
             try
@@ -68,7 +64,7 @@ namespace PuppetMasterGUI
 
         private void LoadCommandPage()
         {
-            var frm = new CommandsPage();
+            var frm = new CommandsPage(logic);
             frm.Location = this.Location;
             frm.StartPosition = FormStartPosition.Manual;
             frm.FormClosing += delegate { this.Show(); };

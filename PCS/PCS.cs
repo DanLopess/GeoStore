@@ -95,15 +95,6 @@ namespace PCS
             }
         }
 
-        public void TerminateAllProcesses()
-        {
-            clientsAndServers.ForEach(p =>
-            {
-                p.Kill();
-                p.WaitForExit();
-            });
-        }
-
         public void SetServerFilename(string filename) { this.serverFilename = filename; }
         public void SetClientFilename(string filename) { this.clientFilename = filename; }
     }
@@ -150,7 +141,6 @@ namespace PCS
             Console.ReadKey();
 
             server.ShutdownAsync().Wait();
-            logic.TerminateAllProcesses();
         }
     }
 }

@@ -219,9 +219,9 @@ namespace PuppetMasterGUI
         /// Method for sending a command to a node to obtain its Status
         /// </summary>
         /// <param name="command"></param>
-        private void SendStatusCommand()
+        public void SendStatusCommand()
         {
-            // Send status, ignore reply for now, eventually show the status response...
+            // TODO Send status, ignore reply for now, eventually show the status response...
             foreach (KeyValuePair<string, string> entry in serverMapping)
             {
                 GetNodeStatusReply reply = SendStatusRequest(entry.Value);
@@ -237,7 +237,7 @@ namespace PuppetMasterGUI
         /// Method for sending a command to a server process and terminate it
         /// </summary>
         /// <param name="command"></param>
-        private void SendCrashCommand(string command)
+        public void SendCrashCommand(string command)
         {
             string[] splittedCommand = command.Split(" ");
             if (splittedCommand.Length == 2)
@@ -261,7 +261,7 @@ namespace PuppetMasterGUI
         /// Method for sending a command to a server and freeze it (lock)
         /// </summary>
         /// <param name="command"></param>
-        private void SendFreezeCommand(string command)
+        public void SendFreezeCommand(string command)
         {
             string[] splittedCommand = command.Split(" ");
             if (splittedCommand.Length == 2)
@@ -285,7 +285,7 @@ namespace PuppetMasterGUI
         /// Method for sending a command to a server and unfreeze it (unlock)
         /// </summary>
         /// <param name="command"></param>
-        private void SendUnfreezeCommand(string command)
+        public void SendUnfreezeCommand(string command)
         {
             string[] splittedCommand = command.Split(" ");
             if (splittedCommand.Length == 2)
@@ -463,6 +463,18 @@ namespace PuppetMasterGUI
         private string GetServerUrl(string serverId)
         {
             return serverMapping.GetValueOrDefault(serverId);
+        }
+
+        public List<string> GetServerIdsList()
+        {
+            List<string> servers = new List<string>();
+
+            foreach (KeyValuePair<string, string> entry in serverMapping)
+            {
+                servers.Add(entry.Key);
+            }
+
+            return servers;
         }
     }
 }
