@@ -143,7 +143,6 @@ namespace Clients
             uniqueKey.PartitionId = partitionId;
             uniqueKey.ObjectId = objectId;
 
-
             ReadResponse response = client.Read(new ReadRequest
             {
                 UniqueKey = uniqueKey,
@@ -369,17 +368,11 @@ namespace Clients
 
                         server.Start();
 
-                        Client client = new Client(username, URL, script);
 
                         while (true)
                         {
                             if (puppetClient.hasReceivedMappings)
                             {
-                                client = new Client(username, URL, script);
-                                client.DataCenter = puppetClient.getDataCenter();
-                                client.ClientList = puppetClient.getClientList();
-                                client.ServerList = puppetClient.getServerList();
-
                                 client.printMappings();
 
                                 Console.WriteLine("Mappings received");
@@ -388,27 +381,11 @@ namespace Clients
 
                                 Console.WriteLine("Input file executed.");
 
-                                puppetClient.hasReceivedMappings = false;
-
                                 break;
                             }
                         }
 
-                        while (true)
-                        {
-                            if (puppetClient.hasReceivedMappings)
-                            {
-                                client.DataCenter = puppetClient.getDataCenter();
-                                client.ClientList = puppetClient.getClientList();
-                                client.ServerList = puppetClient.getServerList();
-
-                                client.printMappings();
-
-                                Console.WriteLine("Mappings received");
-
-                                puppetClient.hasReceivedMappings = false;
-                            }
-                        }                    
+                        while (true){}                    
 
                     } else
                     {
