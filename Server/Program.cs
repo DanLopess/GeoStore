@@ -19,20 +19,20 @@ namespace MainServer
         private GrpcChannel channel;
 
         // DataCenter = <partionId, List<serverId>>
-        private Dictionary<string, List<string>> DataCenter =
+        public Dictionary<string, List<string>> DataCenter =
             new Dictionary<string, List<string>>();
         // ServerList = <serverId, URL>
-        private Dictionary<string, string> ServerList =
+        public Dictionary<string, string> ServerList =
             new Dictionary<string, string>(); 
         // StorageSystem = <UniqueKey,value>
-        private Dictionary<UniqueKey, string> StorageSystem =
+        public Dictionary<UniqueKey, string> StorageSystem =
             new Dictionary<UniqueKey, string>();
         // MyId stores the server id
         private string MyId;
 
         public MainServerService(string Id){
             this.MyId = Id;
-            
+            /*
             Dictionary<string, List<string>> tmp = new Dictionary<string, List<string>>();
             List<string> tmpA = new List<string>();
             List<string> tmpB = new List<string>();
@@ -48,6 +48,19 @@ namespace MainServer
             tmp2.Add("Server-2", "http://localhost:10002");
             tmp2.Add("Server-3", "http://localhost:10003");
             this.ServerList = tmp2;
+            */
+        }
+
+        public void SetDataCenter(Dictionary<string, List<string>> DataCenter){
+            lock(DataCenter){
+                this.DataCenter = DataCenter;
+            }
+        }
+
+        public void SetServerList(Dictionary<string, string> Servers){
+            lock (ServerList){
+                this.ServerList = Servers;
+            }
         }
 
         public override Task<ReadResponse> Read(ReadRequest request, ServerCallContext context)
@@ -56,18 +69,18 @@ namespace MainServer
         }
         public ReadResponse read(ReadRequest request)
         {
-            if (StorageSystem.ContainsKey(request.UniqueKey)) {
-                return new ReadResponse
-                {
-                    Value = StorageSystem[request.UniqueKey]
-                };
-            }
-            else
-            {
-                return new ReadResponse
-                {
-                    Value = "N/A"
-                };
+            lock(StorageSystem){
+                if (StorageSystem.ContainsKey(request.UniqueKey)) {
+                    return new ReadResponse
+                    {
+                        Value = StorageSystem[request.UniqueKey]
+                    };
+                }else{
+                    return new ReadResponse
+                    {
+                        Value = "N/A"
+                    };
+                }
             }
         }
 
@@ -78,20 +91,25 @@ namespace MainServer
         public WriteResponse write(WriteRequest request) {
             UniqueKey uKey = request.Object.UniqueKey;
             string value = request.Object.Value;
-            // TODO implement lock
-            StorageSystem.Add(uKey, value);
-            
-            if (DataCenter[uKey.PartitionId][0] == MyId){
-                List<string> OtherServer = new List<string>(DataCenter[uKey.PartitionId]); 
-                OtherServer.RemoveAt(0);
 
-                if (OtherServer.Count != 0){
-                    foreach (var item in OtherServer){
-                        string url = ServerList[item];
-                        channel = GrpcChannel.ForAddress(url);
-                        ServerService.ServerServiceClient server =
-                            new ServerService.ServerServiceClient(channel);
-                        server.WriteAsync(request);
+            lock(StorageSystem){
+                StorageSystem.Add(uKey, value);
+                lock(DataCenter){
+                    if (DataCenter[uKey.PartitionId][0] == MyId){
+                        List<string> OtherServer = new List<string>(DataCenter[uKey.PartitionId]); 
+                        OtherServer.RemoveAt(0);
+
+                        if (OtherServer.Count != 0){
+                            lock(ServerList){
+                                foreach (var item in OtherServer){
+                                    string url = ServerList[item];
+                                    channel = GrpcChannel.ForAddress(url);
+                                    ServerService.ServerServiceClient server =
+                                        new ServerService.ServerServiceClient(channel);
+                                    server.WriteAsync(request);
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -102,46 +120,41 @@ namespace MainServer
 
         }
 
-
         public override Task<ListServerResponse> ListServer(ListServerRequest request, ServerCallContext context)
         {
             return Task.FromResult(listServer(request));
         }
-        public ListServerResponse listServer(ListServerRequest request){
-                        
+        public ListServerResponse listServer(ListServerRequest request){  
             ListServerResponse listServerResponse = new ListServerResponse();
-            if (request.ServerId == MyId)
-            {
-                foreach (var item in StorageSystem)
-                {
-                    Object tmp = new Object();
-                    var listObj = new ListServerObj();
-                    tmp.UniqueKey = item.Key;
-                    tmp.Value = item.Value;
-                    string partId = tmp.UniqueKey.PartitionId;
-                    listObj.Object = tmp;
-                    if (DataCenter[partId][0] == MyId)
-                    {
-                        listObj.IsMaster = true;
-                    }
-                    else
-                    {
-                        listObj.IsMaster = false;
-                    }
-                    listServerResponse.ListServerObj.Add(listObj);
+            if (request.ServerId == MyId){
+                lock(StorageSystem) lock(DataCenter){
+                    foreach (var item in StorageSystem){
+                        Object tmp = new Object();
+                        var listObj = new ListServerObj();
+                        tmp.UniqueKey = item.Key;
+                        tmp.Value = item.Value;
+                        string partId = tmp.UniqueKey.PartitionId;
+                        listObj.Object = tmp;
+                        if (DataCenter[partId][0] == MyId){
+                            listObj.IsMaster = true;
+                        } else {
+                            listObj.IsMaster = false;
+                        }
+                        listServerResponse.ListServerObj.Add(listObj);
 
+                    }
                 }
-            }
-            else {
-                string url = ServerList[request.ServerId];
-                channel = GrpcChannel.ForAddress(url);
-                ServerService.ServerServiceClient server =
-                    new ServerService.ServerServiceClient(channel);
-                listServerResponse = server.ListServer(request);
+            } else {
+                lock(ServerList){
+                    string url = ServerList[request.ServerId];
+                    channel = GrpcChannel.ForAddress(url);
+                    ServerService.ServerServiceClient server =
+                        new ServerService.ServerServiceClient(channel);
+                    listServerResponse = server.ListServer(request);
+                }
             }
             return listServerResponse;
         }
-
 
         public override Task<ListEachGlobalResponse> ListEachGlobal(ListEachGlobalRequest request, ServerCallContext context)
         {
@@ -149,14 +162,14 @@ namespace MainServer
         }
         public ListEachGlobalResponse listEachGlobal(ListEachGlobalRequest request){
             var listEachGlobalResponse = new ListEachGlobalResponse();
-            foreach (var item in StorageSystem)
-            {
-                UniqueKey uKey = item.Key;
-                listEachGlobalResponse.UniqueKeyList.Add(uKey);
+            lock(StorageSystem){
+                foreach (var item in StorageSystem){
+                    UniqueKey uKey = item.Key;
+                    listEachGlobalResponse.UniqueKeyList.Add(uKey);
+                }
             }
             return listEachGlobalResponse;
         }
-
 
         public override Task<ListGlobalResponse> ListGlobal(ListGlobalRequest request, ServerCallContext context)
         {
@@ -165,12 +178,14 @@ namespace MainServer
         public ListGlobalResponse listGlobal(ListGlobalRequest request){
             var listGlobalResponse = new ListGlobalResponse();
             var listEachGlobalResponse = new ListEachGlobalResponse();
-            Dictionary<string, string> tmpListServer = ServerList;
+            Dictionary<string, string> tmpListServer = new Dictionary<string, string>(ServerList);
             tmpListServer.Remove(MyId);
 
-            foreach (var item in StorageSystem){
-                UniqueKey uKey = item.Key;
-                listGlobalResponse.UniqueKeyList.Add(uKey);
+            lock(StorageSystem){
+                foreach (var item in StorageSystem){
+                    UniqueKey uKey = item.Key;
+                    listGlobalResponse.UniqueKeyList.Add(uKey);
+                }
             }
 
             foreach (var item in tmpListServer) {
@@ -194,43 +209,45 @@ namespace MainServer
             
             public static void Main(string[] args)
             {
-                /* Reading from command line
-                Random rnd = new Random();
-                string MyId = args[0]; 
-                string MyUrl = args[2];
-                int min_delay = int.Parse(args[3]);
-                int max_delay = int.Parse(args[4]);
-                int delay = rnd.Next(min_delay, max_delay + 1);
-                */
-                const string hostname = "localhost";
-                string startupMessage;
-                ServerPort serverPort;
-                ServerPort pmPort;
-                int serverId;
-
-                Console.WriteLine("Insert an Id (2 or 3) for the Server");
-                serverId = Convert.ToInt32(Console.ReadLine());
-                int port = 10000 + serverId;
-
-                //Just for testing
-                string MyId = "Server-" + serverId.ToString();
-                serverPort = new ServerPort(hostname, port, ServerCredentials.Insecure);
-                startupMessage = "Server " + serverId + "listening on port " + port;
-
-
-                Server server = new Server
+                if(args.Length == 4)
                 {
-                    Services = { ServerService.BindService(new MainServerService(MyId)) },
-                    Ports = { serverPort }
-                };
+                    int puppetPort = 10001;
+                    // Reading from command line
+                    Random rnd = new Random();
+                    string ServerId = args[0]; 
+                    string ServerUrl = args[1];
+                    int ServerPort = int.Parse(ServerUrl.Split(':')[1]);
+                    int min_delay = int.Parse(args[2]);
+                    int max_delay = int.Parse(args[3]);
+                    int delay = rnd.Next(min_delay, max_delay + 1);
+                                
+                    string hostname = (ServerUrl.Split(':')[1]).Split('\\')[1];
+                    string startupMessage;
+                    ServerPort serverPort;
+                    ServerPort pmPort;             
 
-                server.Start();
+                    serverPort = new ServerPort(hostname, ServerPort, ServerCredentials.Insecure);
+                    startupMessage = "Server: " + serverId + "\nListening on port: " + port;
 
-                Console.WriteLine(startupMessage);
-                //Configuring HTTP for client connections in Register method
-                AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+                    MainServerService serviceServer = new MainServerService(ServerId)
 
-                while(true);
+                    Server server = new Server
+                    {
+                        Services = { ServerService.BindService(serviceServer),
+                                     PuppetService.BindService(new PuppetServer(serviceServer))
+                                   },
+                        Ports = { serverPort }
+                    };
+                    server.Start();
+
+                    Console.WriteLine(startupMessage);
+                    //Configuring HTTP for client connections in Register method
+                    AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+
+                    while(true);
+                } else {
+                    Console.WriteLine("Received invalid arguments.");
+                }
             }
         }
     }

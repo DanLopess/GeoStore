@@ -10,17 +10,20 @@ using Grpc.Core;
 using Grpc.Net.Client;
 using System.Threading.Tasks;
 
-namespace Clients
+namespace MainServer
 {
-    public class PuppetClient : PuppetService.PuppetServiceBase
+    public class PuppetServer : PuppetService.PuppetServiceBase
     {
-        List<ServerMapping> serverMappings;
-        List<ClientMapping> clientMappings;
-        List<PartitionMapping> partitionMappings;
+        private List<ServerMapping> serverMappings;
+        private List<ClientMapping> clientMappings;
+        private List<PartitionMapping> partitionMappings;
+        private MainServerService server;
+        public bool hasReceivedMappings { get; set; }
 
-        public PuppetClient()
+        public PuppetServer(MainServerService server)
         {
-
+            hasReceivedMappings = false;
+            this.server = server;
         }
 
         public override Task<SendMappingsReply> SendMappings(SendMappingsRequest request, ServerCallContext context)
@@ -29,16 +32,17 @@ namespace Clients
         }
         public SendMappingsReply sendMappings(SendMappingsRequest request)
         {
-
             this.serverMappings = request.ServerMapping.ToList();
             this.clientMappings = request.ClientMapping.ToList();
             this.partitionMappings = request.PartitionMapping.ToList();
 
+            server.SetDataCenter(getDataCenter());
+            server.SetServerList(getServerList());
+
+            this.hasReceivedMappings = true;
 
             return new SendMappingsReply { Ok = true };
         }
-
-
 
         public override Task<GetNodeStatusReply> GetStatus(GetNodeStatusRequest request, ServerCallContext context)
         {
@@ -46,8 +50,8 @@ namespace Clients
         }
         public GetNodeStatusReply getStatus()
         {
-            return new GetNodeStatusReply { Ok = true, Response = "Client running" };
-
+            //TODO implement new status for server, freezed and unfreezed
+            return new GetNodeStatusReply { Ok = true, Response = "Server running" };
         }
 
         public Dictionary<string, string> getServerList()
