@@ -82,26 +82,36 @@ namespace Clients
             String[] line = new String[lines.Length];
             Thread[] array = new Thread[lines.Length];
             int count = 0;
-
-            ConnectToServer();
-
-            for (int i = 0; i < lines.Length; i++)
+            if (lines.Length > 0 && ServerList.Count > 0)
             {
-                line = lines[i].Split(' ');
-
-                if (line[0] == "begin-repeat")
+                foreach (var item in ServerList)
                 {
-                    count = beginRepeat(i, int.Parse(line[1]));
-                    i = i + count;
-                    Console.WriteLine("end-repeat");
-
+                    string serverUrl = item.Value;
+                    SetCurrentServer(serverUrl);
+                    break;
                 }
-                else { switchCase(line, -1); }
 
-                /*
-               array[i] = new Thread(() => switchCase(line, i));
-               array[i].Start();
-               */
+                ConnectToServer();
+
+
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    line = lines[i].Split(' ');
+
+                    if (line[0] == "begin-repeat")
+                    {
+                        count = beginRepeat(i, int.Parse(line[1]));
+                        i = i + count;
+                        Console.WriteLine("end-repeat");
+
+                    }
+                    else { switchCase(line, -1); }
+
+                    /*
+                   array[i] = new Thread(() => switchCase(line, i));
+                   array[i].Start();
+                   */
+                }
             }
 
         }

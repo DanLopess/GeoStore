@@ -10,17 +10,20 @@ using Grpc.Core;
 using Grpc.Net.Client;
 using System.Threading.Tasks;
 
-namespace Clients
+namespace MainServer
 {
-    public class PuppetClient : PuppetService.PuppetServiceBase
+    public class PuppetServer : PuppetService.PuppetServiceBase
     {
-        List<ServerMapping> serverMappings;
-        List<ClientMapping> clientMappings;
-        List<PartitionMapping> partitionMappings;
+        private List<ServerMapping> serverMappings;
+        private List<ClientMapping> clientMappings;
+        private List<PartitionMapping> partitionMappings;
+        private MainServerService server;
+        public bool hasReceivedMappings { get; set; }
 
-        public PuppetClient()
+        public PuppetServer(MainServerService server)
         {
-
+            hasReceivedMappings = false;
+            this.server = server;
         }
 
         public override Task<SendMappingsReply> SendMappings(SendMappingsRequest request, ServerCallContext context)
@@ -29,16 +32,17 @@ namespace Clients
         }
         public SendMappingsReply sendMappings(SendMappingsRequest request)
         {
-
             this.serverMappings = request.ServerMapping.ToList();
             this.clientMappings = request.ClientMapping.ToList();
             this.partitionMappings = request.PartitionMapping.ToList();
 
+            server.SetDataCenter(getDataCenter());
+            server.SetServerList(getServerList());
+
+            this.hasReceivedMappings = true;
 
             return new SendMappingsReply { Ok = true };
         }
-
-
 
         public override Task<GetNodeStatusReply> GetStatus(GetNodeStatusRequest request, ServerCallContext context)
         {
@@ -46,8 +50,33 @@ namespace Clients
         }
         public GetNodeStatusReply getStatus()
         {
-            return new GetNodeStatusReply { Ok = true, Response = "Client running" };
+            if (server.freeze){
+                Console.WriteLine("Server Status: Freeze");
+            }
+            else if (!server.freeze){
+                Console.WriteLine("Server Status: Unfreeze");
+            }
+            
+            return new GetNodeStatusReply { Ok = true, Response = "Server running" };
+        }
 
+        public override Task<ChangeServerStateReply> ChangeServerState(ChangeServerStateRequest request, ServerCallContext context)
+        {
+            return Task.FromResult(changeServerState(request));
+        }
+        public ChangeServerStateReply changeServerState(ChangeServerStateRequest request)
+        {
+            Console.WriteLine(request.State);
+            if (request.State == ServerState.Freeze){
+                server.freeze = true;
+            }
+            else if (request.State == ServerState.Unfreeze){
+                server.freeze = false;
+            }
+            else if (request.State == ServerState.Crash){
+                server.crash = true;
+            }
+            return new ChangeServerStateReply { Ok = true };
         }
 
         public Dictionary<string, string> getServerList()
