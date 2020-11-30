@@ -1,8 +1,8 @@
-write Part1 2 "Value-$i"
-write Part1 3 "Values-$i"
-listServer Server-2
+write p1 2 "Value-$i"
+write p1 3 "Values-$i"
+listServer s1
 begin-repeat 3
-read Part1 2 3
+read p1 2 3
 end-repeat
 wait 3000
-write Part1 4 "Values-$i"
+write p1 4 "Values-$i"

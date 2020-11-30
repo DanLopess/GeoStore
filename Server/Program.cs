@@ -30,6 +30,9 @@ namespace MainServer
         // MyId stores the server id
         private string MyId;
 
+        public Boolean freeze = false;
+        public Boolean crash = false;
+
         public MainServerService(string Id){
             this.MyId = Id;
             /*
@@ -89,6 +92,7 @@ namespace MainServer
             return Task.FromResult(write(request));
         }
         public WriteResponse write(WriteRequest request) {
+            while (freeze) ;
             UniqueKey uKey = request.Object.UniqueKey;
             string value = request.Object.Value;
 
@@ -211,6 +215,18 @@ namespace MainServer
             return listGlobalResponse;
             
         }
+        public void printMappings()
+        {
+            foreach (KeyValuePair<string, string> entry in ServerList)
+            {
+                Console.WriteLine($"Server {entry.Key} with URL: {entry.Value}");
+            }
+            foreach (KeyValuePair<string, List<String>> entry in DataCenter)
+            {
+                string servers = String.Join(", ", entry.Value.ToArray());
+                Console.WriteLine($"Partition {entry.Key} with Servers: {servers}");
+            }
+        }
 
         class Program
         {
@@ -219,30 +235,29 @@ namespace MainServer
             {
                 if(args.Length == 4)
                 {
-                    int puppetPort = 10001;
                     // Reading from command line
                     Random rnd = new Random();
                     string ServerId = args[0]; 
                     string ServerUrl = args[1];
-                    int ServerPort = int.Parse(ServerUrl.Split(':')[1]);
+                    int ServerPort = int.Parse(ServerUrl.Split(':')[2]);
                     int min_delay = int.Parse(args[2]);
                     int max_delay = int.Parse(args[3]);
                     int delay = rnd.Next(min_delay, max_delay + 1);
                                 
-                    string hostname = (ServerUrl.Split(':')[1]).Split('\\')[1];
+                    string hostname = (ServerUrl.Split(':')[1]).Substring(2);
                     string startupMessage;
-                    ServerPort serverPort;
-                    ServerPort pmPort;             
+                    ServerPort serverPort;         
 
                     serverPort = new ServerPort(hostname, ServerPort, ServerCredentials.Insecure);
-                    startupMessage = "Server: " + serverId + "\nListening on port: " + port;
+                    startupMessage = "Server: " + ServerId + "\nListening on port: " + ServerPort;
 
-                    MainServerService serviceServer = new MainServerService(ServerId)
+                    MainServerService serviceServer = new MainServerService(ServerId);
+                    PuppetServer puppetServer = new PuppetServer(serviceServer);
 
                     Server server = new Server
                     {
                         Services = { ServerService.BindService(serviceServer),
-                                     PuppetService.BindService(new PuppetServer(serviceServer))
+                                     PuppetService.BindService(puppetServer)
                                    },
                         Ports = { serverPort }
                     };
@@ -252,7 +267,20 @@ namespace MainServer
                     //Configuring HTTP for client connections in Register method
                     AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 
-                    while(true);
+                    while (true)
+                    {
+                        if (puppetServer.hasReceivedMappings)
+                        {
+                            serviceServer.printMappings();
+
+                            Console.WriteLine("Mappings received");
+                            Console.WriteLine("Input file executed.");
+
+                            break;
+                        }
+                    }
+
+                    while (!serviceServer.crash) { }
                 } else {
                     Console.WriteLine("Received invalid arguments.");
                 }

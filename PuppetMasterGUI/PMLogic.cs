@@ -118,7 +118,7 @@ namespace PuppetMasterGUI
             string[] splittedCommand = command.Split(" ");
             if (splittedCommand.Length == 2)
             {
-                lock (replicationFactor) { replicationFactor = splittedCommand[1]; }
+                lock (this) { replicationFactor = splittedCommand[1]; }
             } else
             {
                 throw new InvalidCommandException("The specified command is not valid. \nCommand: " + command);
@@ -150,7 +150,7 @@ namespace PuppetMasterGUI
 
                     if (reply.Ok)
                     {
-                        lock (clientMapping) { clientMapping.TryAdd(splittedCommand[1], splittedCommand[2]); }
+                        lock (this) { clientMapping.TryAdd(splittedCommand[1], splittedCommand[2]); }
                         // Only add to mappings if node started correctly
                     } else
                     {
@@ -184,7 +184,7 @@ namespace PuppetMasterGUI
 
                     if (reply.Ok)
                     {
-                        lock (serverMapping) { serverMapping.TryAdd(splittedCommand[1], splittedCommand[2]); }
+                        lock (this) { serverMapping.TryAdd(splittedCommand[1], splittedCommand[2]); }
                         // Only add to mappings if node started correctly
                     }
                     else
@@ -211,7 +211,7 @@ namespace PuppetMasterGUI
                     replicas.Add(splittedCommand[i]);
                 }
 
-                lock(partitionsMapping) { partitionsMapping.TryAdd(partitionId, replicas); }
+                lock(this) { partitionsMapping.TryAdd(partitionId, replicas); }
             }
         }
 

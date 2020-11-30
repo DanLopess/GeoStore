@@ -38,19 +38,15 @@ namespace Clients
             return new SendMappingsReply { Ok = true} ; 
         }
 
-
-
         public override Task<GetNodeStatusReply> GetStatus(GetNodeStatusRequest request, ServerCallContext context)
         {
             return Task.FromResult(getStatus());
         }
-        
         public GetNodeStatusReply getStatus()
         {
             Console.WriteLine("Sent Status");
             return new GetNodeStatusReply { Ok = true, Response = "Client running" };
         }
-
         public Dictionary<string,string> getServerList()
         {
             Dictionary<string, string> ServerList = new Dictionary<string, string>();
