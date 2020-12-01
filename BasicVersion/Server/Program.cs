@@ -35,23 +35,6 @@ namespace MainServer
 
         public MainServerService(string Id){
             this.MyId = Id;
-            /*
-            Dictionary<string, List<string>> tmp = new Dictionary<string, List<string>>();
-            List<string> tmpA = new List<string>();
-            List<string> tmpB = new List<string>();
-            tmpA.Add("Server-2");
-            tmpA.Add("Server-3");
-            tmpB.Add("Server-3");
-            tmpB.Add("Server-2");
-            tmp.Add("Part1", tmpA);
-            tmp.Add("Part2", tmpB);
-            this.DataCenter = tmp;
-
-            Dictionary<string, string> tmp2 = new Dictionary<string, string>();
-            tmp2.Add("Server-2", "http://localhost:10002");
-            tmp2.Add("Server-3", "http://localhost:10003");
-            this.ServerList = tmp2;
-            */
         }
 
         public void SetDataCenter(Dictionary<string, List<string>> DataCenter){
@@ -72,7 +55,8 @@ namespace MainServer
         }
         public ReadResponse read(ReadRequest request)
         {
-            lock(StorageSystem){
+            while (freeze) ;
+            lock (StorageSystem){
                 if (StorageSystem.ContainsKey(request.UniqueKey)) {
                     return new ReadResponse
                     {
@@ -128,7 +112,8 @@ namespace MainServer
         {
             return Task.FromResult(listServer(request));
         }
-        public ListServerResponse listServer(ListServerRequest request){  
+        public ListServerResponse listServer(ListServerRequest request){
+            while (freeze) ;
             ListServerResponse listServerResponse = new ListServerResponse();
             if (request.ServerId == MyId){
                 lock(StorageSystem) lock(DataCenter){
@@ -165,6 +150,7 @@ namespace MainServer
             return Task.FromResult(listEachGlobal(request));
         }
         public ListEachGlobalResponse listEachGlobal(ListEachGlobalRequest request){
+            while (freeze) ;
             var listEachGlobalResponse = new ListEachGlobalResponse();
             lock(StorageSystem){
                 //GlobalStructure gStruct = new GlobalStructure();
@@ -184,6 +170,7 @@ namespace MainServer
             return Task.FromResult(listGlobal(request));
         }
         public ListGlobalResponse listGlobal(ListGlobalRequest request){
+            while (freeze) ;
             var listGlobalResponse = new ListGlobalResponse();
             var listEachGlobalResponse = new ListEachGlobalResponse();
             Dictionary<string, string> tmpListServer = new Dictionary<string, string>(ServerList);

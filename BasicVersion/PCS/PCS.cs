@@ -23,7 +23,7 @@ namespace PCS
 
         public StartClientProcessReply StartClient(StartClientProcessRequest request)
         {
-            if (File.Exists(clientFilename))
+            if (File.Exists(clientFilename) && File.Exists(request.ScriptFilename))
             {
                 // Prepare the process to run
                 ProcessStartInfo start = new ProcessStartInfo();
