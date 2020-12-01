@@ -4,7 +4,11 @@ VisualStudioVersion = 16.0.30517.126
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Server", "Server\Server.csproj", "{3384EEA8-10C1-48ED-AC17-233B0A21263B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "Client\Client.csproj", "{DA769400-6A31-423B-8636-62D3DA052A9F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Client", "Client\Client.csproj", "{DA769400-6A31-423B-8636-62D3DA052A9F}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PCS", "PCS\PCS.csproj", "{12D1895A-B97B-47C2-AC32-8B6C51279450}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PuppetMasterGUI", "PuppetMasterGUI\PuppetMasterGUI.csproj", "{7D71873B-28EF-4F1C-B228-F503B0F08923}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -20,6 +24,14 @@ Global
 		{DA769400-6A31-423B-8636-62D3DA052A9F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DA769400-6A31-423B-8636-62D3DA052A9F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DA769400-6A31-423B-8636-62D3DA052A9F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{12D1895A-B97B-47C2-AC32-8B6C51279450}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{12D1895A-B97B-47C2-AC32-8B6C51279450}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{12D1895A-B97B-47C2-AC32-8B6C51279450}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{12D1895A-B97B-47C2-AC32-8B6C51279450}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7D71873B-28EF-4F1C-B228-F503B0F08923}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7D71873B-28EF-4F1C-B228-F503B0F08923}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7D71873B-28EF-4F1C-B228-F503B0F08923}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7D71873B-28EF-4F1C-B228-F503B0F08923}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
