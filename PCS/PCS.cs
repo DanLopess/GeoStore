@@ -13,8 +13,8 @@ namespace PCS
     public class PCSServerLogic
     {
         private List<Process> clientsAndServers;
-        private string clientFilename = "client.exe";
-        private string serverFilename = "server.exe";
+        private string clientFilename;
+        private string serverFilename;
 
 
         public PCSServerLogic(){
@@ -23,7 +23,7 @@ namespace PCS
 
         public StartClientProcessReply StartClient(StartClientProcessRequest request)
         {
-            if (File.Exists(serverFilename) && File.Exists(request.ScriptFilename))
+            if (File.Exists(clientFilename))
             {
                 // Prepare the process to run
                 ProcessStartInfo start = new ProcessStartInfo();
@@ -95,15 +95,6 @@ namespace PCS
             }
         }
 
-        public void TerminateAllProcesses()
-        {
-            clientsAndServers.ForEach(p =>
-            {
-                p.Kill();
-                p.WaitForExit();
-            });
-        }
-
         public void SetServerFilename(string filename) { this.serverFilename = filename; }
         public void SetClientFilename(string filename) { this.clientFilename = filename; }
     }
@@ -111,7 +102,7 @@ namespace PCS
     class Program
     {
         private const int PCSPort = 10000;
-        private const string hostname = "localhost";
+        private const string hostname = "127.0.0.1";
 
         static void Main(string[] args)
         {
@@ -150,7 +141,6 @@ namespace PCS
             Console.ReadKey();
 
             server.ShutdownAsync().Wait();
-            logic.TerminateAllProcesses();
         }
     }
 }

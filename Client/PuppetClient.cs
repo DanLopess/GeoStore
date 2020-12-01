@@ -8,13 +8,15 @@ using System.Threading.Tasks;
 namespace Clients
 { 
     public class PuppetClient:PuppetService.PuppetServiceBase{
-        List <ServerMapping> serverMappings;
-        List<ClientMapping> clientMappings;
-        List<PartitionMapping> partitionMappings;
-        bool hasReceivedMappings;
-        public PuppetClient()
+        private List<ServerMapping> serverMappings;
+        private List<ClientMapping> clientMappings;
+        private List<PartitionMapping> partitionMappings;
+        private Client client;
+        public bool hasReceivedMappings { get; set; }
+        public PuppetClient(Client client)
         {
-          hasReceivedMappings = false;
+            hasReceivedMappings = false;
+            this.client = client;
         }
         
         public override Task<SendMappingsReply> SendMappings(SendMappingsRequest request, ServerCallContext context)
@@ -28,11 +30,13 @@ namespace Clients
             this.clientMappings = request.ClientMapping.ToList();
             this.partitionMappings = request.PartitionMapping.ToList();
 
+            client.SetDataCenter(getDataCenter());
+            client.SetClientList(getClientList());
+            client.SetServerList(getServerList());
+
             this.hasReceivedMappings = true;
             return new SendMappingsReply { Ok = true} ; 
         }
-
-
 
         public override Task<GetNodeStatusReply> GetStatus(GetNodeStatusRequest request, ServerCallContext context)
         {
@@ -40,10 +44,9 @@ namespace Clients
         }
         public GetNodeStatusReply getStatus()
         {
+            Console.WriteLine("Sent Status");
             return new GetNodeStatusReply { Ok = true, Response = "Client running" };
-
         }
-
         public Dictionary<string,string> getServerList()
         {
             Dictionary<string, string> ServerList = new Dictionary<string, string>();

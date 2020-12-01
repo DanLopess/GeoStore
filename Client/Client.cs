@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
@@ -10,52 +11,45 @@ using System.Threading.Tasks;
 namespace Clients
 {
 
-    public partial class Client
+    public class Client
     {
         private ServerService.ServerServiceClient client;
+        private GrpcChannel channel;
+        private string currentServer;
+        private string username;
+        private string myURL;
+        private string[] lines;
 
-        static string serverPort = "10002";
-        string defaultServer = "http://localhost:" + serverPort;
-        GrpcChannel channel;
-        string username;
-        int myPort;
-        string myURL;
-        String[] lines;
         // ServerList = <serverId, URL>
-        private Dictionary<string, string> ServerList = new Dictionary<string, string>();
+        public Dictionary<string, string> ServerList = new Dictionary<string, string>();
         // DataCenter = <partitionId, List<serverId>>
-        private Dictionary<string, List<string>> DataCenter = new Dictionary<string, List<string>>();
+        public Dictionary<string, List<string>> DataCenter = new Dictionary<string, List<string>>();
         //ClientList= <username,URL>
-        private Dictionary<string, string> ClientList = new Dictionary<string, string>();
-        public Client(String client_username,String client_URL, String script_file)
-        {
+        public Dictionary<string, string> ClientList = new Dictionary<string, string>();
 
+        public Client(string client_username, string client_URL, string script_file)
+        {
             AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
-            openChannel(defaultServer);
 
             username = client_username;
-            myURL = "client_URL";
-            lines = System.IO.File.ReadAllLines(script_file);
+            myURL = client_URL;
+            lines = File.ReadAllLines(script_file);
 
+            Console.WriteLine($"Client {username} started at {myURL}");
+        }
 
-            //temporary fill to test
-
-
-            Dictionary<string, List<string>> tmp = new Dictionary<string, List<string>>();
-            List<string> tmpA = new List<string>();
-            List<string> tmpB = new List<string>();
-            tmpA.Add("Server-2");
-            tmpA.Add("Server-3");
-            tmpB.Add("Server-3");
-            tmpB.Add("Server-2");
-            tmp.Add("Part1", tmpA);
-            tmp.Add("Part2", tmpB);
-            this.DataCenter = tmp;
-
-            Dictionary<string, string> tmp2 = new Dictionary<string, string>();
-            tmp2.Add("Server-2", "http://localhost:10002");
-            tmp2.Add("Server-3", "http://localhost:10003");
-            this.ServerList = tmp2;
+        // DELETE THIS
+        public void printMappings()
+        {
+            foreach (KeyValuePair<string, string> entry in ClientList)
+            {
+                Console.WriteLine($"Client {entry.Key} with URL: {entry.Value}");
+            }
+            foreach (KeyValuePair<string, List<String>> entry in DataCenter)
+            {
+                string servers = String.Join(", ", entry.Value.ToArray());
+                Console.WriteLine($"Partition {entry.Key} with Servers: {servers}");
+            }
         }
 
         public string getServerId()
@@ -63,8 +57,7 @@ namespace Clients
             string id = "";
             foreach (string key in ServerList.Keys)
             {
-
-                if (ServerList[key].Equals(defaultServer))
+                if (ServerList[key].Equals(currentServer))
                 {
                     id = key;
                 }
@@ -73,37 +66,52 @@ namespace Clients
         }
 
 
-        public void openChannel(string URL)
+        public void ConnectToServer()
         {
-            this.channel = GrpcChannel.ForAddress(URL);
+            this.channel = GrpcChannel.ForAddress(currentServer);
             this.client = new ServerService.ServerServiceClient(this.channel);
+        }
 
-
+        public void SetCurrentServer(string server)
+        {
+            this.currentServer = server;
         }
 
         public void parseInputFile()
-
         {
             String[] line = new String[lines.Length];
             Thread[] array = new Thread[lines.Length];
             int count = 0;
-            for (int i = 0; i < lines.Length; i++)
+            if (lines.Length > 0 && ServerList.Count > 0)
             {
-                line = lines[i].Split(' ');
-
-                if (line[0] == "begin-repeat")
+                foreach (var item in ServerList)
                 {
-                    count = beginRepeat(i, int.Parse(line[1]));
-                    i = i + count;
-                    Console.WriteLine("end-repeat");
-
+                    string serverUrl = item.Value;
+                    SetCurrentServer(serverUrl);
+                    break;
                 }
-                else { switchCase(line, -1); }
 
-                /*
-               array[i] = new Thread(() => switchCase(line, i));
-               array[i].Start();
-               */
+                ConnectToServer();
+
+
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    line = lines[i].Split(' ');
+
+                    if (line[0] == "begin-repeat")
+                    {
+                        count = beginRepeat(i, int.Parse(line[1]));
+                        i = i + count;
+                        Console.WriteLine("end-repeat");
+
+                    }
+                    else { switchCase(line, -1); }
+
+                    /*
+                   array[i] = new Thread(() => switchCase(line, i));
+                   array[i].Start();
+                   */
+                }
             }
 
         }
@@ -128,9 +136,6 @@ namespace Clients
                 case "wait":
                     Wait(int.Parse(line[1]));
                     break;
-
-
-
             }
         }
 
@@ -144,12 +149,9 @@ namespace Clients
         }
         public ReadResponse Read(string partitionId, string objectId, string server_id, int beginRepeat)
         {
-
-
             UniqueKey uniqueKey = new UniqueKey();
             uniqueKey.PartitionId = partitionId;
             uniqueKey.ObjectId = objectId;
-
 
             ReadResponse response = client.Read(new ReadRequest
             {
@@ -157,13 +159,13 @@ namespace Clients
                 ServerId = server_id
             });
 
-            if (response.Value.Equals("N/A") && int.Parse(server_id) != -1)
+            if (response.Value.Equals("N/A") && !server_id.Equals("-1"))
             {
-                Console.WriteLine("Current Server doesn't have the object.Changing Server ...");
-                int port = int.Parse(server_id) + 10000;
-                var change_server = defaultServer.Replace(serverPort, port.ToString());
-                openChannel(change_server);
-                Console.WriteLine(change_server);
+                Console.WriteLine("Current Server doesn't have the object. Changing Server ...");
+
+                SetCurrentServer(server_id);
+                ConnectToServer();
+
                 response = client.Read(new ReadRequest
                 {
                     UniqueKey = uniqueKey,
@@ -185,12 +187,17 @@ namespace Clients
         public void CheckMaster(string partitionId, string objectId, string value, int beginRepeat)
         {
             string server_id = getServerId();
-            if (!DataCenter[partitionId][0].Equals(server_id))
+
+            lock (DataCenter)
             {
-                openChannel(ServerList[server_id]);
+                if (!DataCenter[partitionId][0].Equals(server_id))
+                {
+                    server_id = DataCenter[partitionId][0];
+                    SetCurrentServer(ServerList[server_id]);
+                    ConnectToServer();
+                }
             }
             Write(partitionId, objectId, value, beginRepeat);
-
         }
         public WriteResponse Write(string partitionId, string objectId, string value, int beginRepeat)
         {
@@ -311,58 +318,96 @@ namespace Clients
 
             return count;
         }
-        static class Program
+
+        public void SetDataCenter(Dictionary<string, List<string>> DataCenter)
+        {
+            lock(DataCenter)
+            {
+                this.DataCenter = DataCenter;
+            }
+        }
+
+        public void SetServerList(Dictionary<string, string> Servers)
+        {
+            lock (ServerList)
+            {
+                this.ServerList = Servers;
+            }
+        }
+
+        public void SetClientList(Dictionary<string, string> Clients)
+        {
+            lock (ClientList)
+            {
+                this.ClientList = Clients;
+            }
+        }
+
+        public static class Program
         {
             /// <summary>
             ///  The main entry point for the application.
             /// </summary>
             [STAThread]
-            static void Main(string[] args)
+            public static void Main(string[] args)
             {
-                /*To be implemented;
-                 int myPort=1000;
-                 ServerPort serverPort = new ServerPort("localhost", myPort, ServerCredentials.Insecure);
-                 bool hasReceivedMappings = false;
-                 const string hostname = "localhost";
-                 PuppetClient puppetClient = new PuppetClient();
-                   
-                 Server server = new Server
+                //run by the command line
+                if (args.Length == 3)
+                {
+                    string username = args[0];
+                    string URL = args[1];
+                    string script = args[2];
+
+                    string[] splittedURL = URL.Split(":");
+
+                    if (splittedURL.Length == 3)
                     {
-                        Services = { PuppetService.BindService(puppetClient) },
-                        Ports = { serverPort }
-                    };
+                        string hostname = splittedURL[1].Substring(2); // Obtain localhost from http://localhost
+                        int port = int.Parse(splittedURL[2]);
 
-                 server.Start();
-                    
-                
-                
-                if (puppetClient.hasReceivedMappings) {*/
+                        ServerPort serverPort = new ServerPort(hostname, port, ServerCredentials.Insecure);
+                        Client client = new Client(username, URL, script);
+                       
+                        PuppetClient puppetClient = new PuppetClient(client);
 
-                    string username = "username";
-                    string URL = "http://localhost:1000";
-                    string script = "scripts/script_file_3.txt";
+                        Server server = new Server
+                        {
+                            Services = { PuppetService.BindService(puppetClient) },
+                            Ports = { serverPort }
+                        };
 
-                    //run by the command line
-                    if (args.Length != 0)
+                        server.Start();
+
+
+                        while (true)
+                        {
+                            if (puppetClient.hasReceivedMappings)
+                            {
+                                client.printMappings();
+
+                                Console.WriteLine("Mappings received");
+
+                                client.parseInputFile();
+
+                                Console.WriteLine("Input file executed.");
+
+                                break;
+                            }
+                        }
+
+                        while (true){}                    
+
+                    } else
                     {
-                        username = args[0];
-                        URL = args[1];
-                        script = args[2];
+                        Console.WriteLine("Received invalid arguments.");
+                        Console.ReadKey();
                     }
-
-                    Client client = new Client(username, URL, script);
-                    /*
-                    client.DataCenter = puppetClient.getDataCenter();
-                    client.ClientList = puppetClient.getClientList();
-                    client.ServerList =puppetClient.getServerList();
-                    server.ShutdownAsync().Wait();
                     
-                    */
-
-                    client.parseInputFile();
-               // }
-                while (true) ;
-                
+                } else
+                {
+                    Console.WriteLine("No arguments received.");
+                    Console.ReadKey();
+                }
             }
         }
     }
