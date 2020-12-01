@@ -1,8 +1,0 @@
-write p1 2 "Value-$i"
-write p1 3 "Values-$i"
-listServer s2
-begin-repeat 3
-read p1 2 3
-end-repeat
-wait 3000
-write p1 4 "Values-$i"
