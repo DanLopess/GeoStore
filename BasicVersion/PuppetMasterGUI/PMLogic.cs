@@ -45,7 +45,7 @@ namespace PuppetMasterGUI
         /// <summary>
         /// Method for executing all of the commands in a given script file
         /// </summary>
-        public async void RunScript()
+        public void RunScript()
         {
             List<string> commands = ReadFileLines(ScriptFilename);
 
@@ -63,7 +63,7 @@ namespace PuppetMasterGUI
             }
             );
 
-            await Task.WhenAll(tasks);
+            Task.WaitAll(tasks.ToArray());
 
             // Rethrow last exception thrown in Tasks
             if (_Exception != null)
@@ -173,9 +173,10 @@ namespace PuppetMasterGUI
                             lock (ExceptLock)
                                 _Exception = new PCSNotOKException("PCS returned a NOT OK message.");
                         }
-                    } catch (Exception e)
+                    } catch
                     {
-                        // TODO node is down, do something abt it
+                        lock (ExceptLock)
+                            _Exception = new PCSNotOKException("PCS server is down. URL: " + url);
                     }
                     
                 }
@@ -222,9 +223,11 @@ namespace PuppetMasterGUI
                             lock (ExceptLock)
                                 _Exception = new PCSNotOKException("PCS returned a NOT OK message.");
                         }
-                    } catch (Exception e)
+                    }
+                    catch
                     {
-                        // TODO PCS is down, do something about it
+                        lock (ExceptLock)
+                            _Exception = new PCSNotOKException("PCS server is down. URL: " + url);
                     }
                 }
             }

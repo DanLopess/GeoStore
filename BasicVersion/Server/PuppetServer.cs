@@ -50,10 +50,10 @@ namespace MainServer
         {
             server.SetDelay();
             if (server.freeze){
-                Console.WriteLine("Server Status: Freeze");
+                Console.WriteLine("Server Status: Frozen");
             }
             else if (!server.freeze){
-                Console.WriteLine("Server Status: Unfreeze");
+                Console.WriteLine("Server Status: Normal");
             }
             
             return new GetNodeStatusReply { Ok = true, Response = "Server running" };
@@ -66,7 +66,7 @@ namespace MainServer
         public ChangeServerStateReply changeServerState(ChangeServerStateRequest request)
         {
             server.SetDelay();
-            Console.WriteLine(request.State);
+            Console.WriteLine("Changed server state to: " + request.State);
             if (request.State == ServerState.Freeze){
                 server.freeze = true;
             }

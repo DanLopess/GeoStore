@@ -230,7 +230,6 @@ namespace MainServer
             Random rnd = new Random();
             int delay = rnd.Next(minDelay, maxDelay + 1);
             Thread.Sleep(delay);
-            Console.WriteLine($"Waited for {delay} milliseconds");
         }
 
         class Program
@@ -272,7 +271,7 @@ namespace MainServer
                     //Configuring HTTP for client connections in Register method
                     AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 
-                    while (!serviceServer.crash) { }
+                    while (!serviceServer.crash) { Thread.Sleep(50); }
                     Thread.Sleep(1000);
 
                 } else {

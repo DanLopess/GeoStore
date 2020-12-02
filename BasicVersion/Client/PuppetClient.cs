@@ -44,7 +44,9 @@ namespace Clients
         }
         public GetNodeStatusReply getStatus()
         {
-            Console.WriteLine("Sent Status");
+            Console.WriteLine("Client Status: Normal");
+            Console.WriteLine("\nMappings:\n");
+            client.PrintMappings();
             return new GetNodeStatusReply { Ok = true, Response = "Client running" };
         }
         public Dictionary<string,string> getServerList()

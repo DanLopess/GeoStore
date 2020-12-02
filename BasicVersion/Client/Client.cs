@@ -39,7 +39,7 @@ namespace Clients
         }
 
         // DELETE THIS
-        public void printMappings()
+        public void PrintMappings()
         {
             foreach (KeyValuePair<string, string> entry in ClientList)
             {
@@ -52,7 +52,7 @@ namespace Clients
             }
         }
 
-        public string getServerId()
+        public string GetServerId()
         {
             string id = "";
             foreach (string key in ServerList.Keys)
@@ -77,10 +77,11 @@ namespace Clients
             this.currentServer = server;
         }
 
-        public void parseInputFile()
+        public void ParseInputFile()
         {
             String[] line = new String[lines.Length];
             Thread[] array = new Thread[lines.Length];
+
             int count = 0;
             if (lines.Length > 0 && ServerList.Count > 0)
             {
@@ -88,7 +89,7 @@ namespace Clients
                 {
                     string serverUrl = item.Value;
                     SetCurrentServer(serverUrl);
-                    break;
+                    break; // only need to get the first element of dictionary
                 }
 
                 ConnectToServer();
@@ -100,12 +101,12 @@ namespace Clients
 
                     if (line[0] == "begin-repeat")
                     {
-                        count = beginRepeat(i, int.Parse(line[1]));
+                        count = BeginRepeat(i, int.Parse(line[1]));
                         i = i + count;
                         Console.WriteLine("end-repeat");
 
                     }
-                    else { switchCase(line, -1); }
+                    else { SwitchCase(line, -1); }
 
                     /*
                    array[i] = new Thread(() => switchCase(line, i));
@@ -116,7 +117,7 @@ namespace Clients
 
         }
 
-        public void switchCase(string[] line, int beginRepeat)
+        public void SwitchCase(string[] line, int beginRepeat)
         {
 
             switch (line[0])
@@ -186,7 +187,7 @@ namespace Clients
         
         public void CheckMaster(string partitionId, string objectId, string value, int beginRepeat)
         {
-            string server_id = getServerId();
+            string server_id = GetServerId();
 
             lock (DataCenter)
             {
@@ -285,7 +286,7 @@ namespace Clients
 
         }
 
-        public int beginRepeat(int i, int x)
+        public int BeginRepeat(int i, int x)
         {
             Console.WriteLine(lines[i].Split(' ')[0] + " " + lines[i].Split(' ')[1]);
             int count = 0;
@@ -308,9 +309,9 @@ namespace Clients
             {
                 while (aux < max)
                 {
-                    for (int l = 0; l < x; l++)
+                    for (int j = 1; j < x+1; j++)
                     {
-                        switchCase(lines[aux + 1].Split(' '), l);
+                        SwitchCase(lines[aux + 1].Split(' '), j);
                     }
                     aux = aux + 1;
                 }
@@ -383,19 +384,20 @@ namespace Clients
                         {
                             if (puppetClient.hasReceivedMappings)
                             {
-                                client.printMappings();
+                                client.PrintMappings();
 
                                 Console.WriteLine("Mappings received");
 
-                                client.parseInputFile();
+                                client.ParseInputFile();
 
                                 Console.WriteLine("Input file executed.");
 
                                 break;
                             }
+                            Thread.Sleep(25); 
                         }
 
-                        while (true){}                    
+                        while (true){ Thread.Sleep(1000); }  // Avoid consuming a lot of processing power                 
 
                     } else
                     {

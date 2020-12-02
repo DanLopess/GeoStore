@@ -25,7 +25,7 @@ namespace PuppetMasterGUI
 
         private void CrashButton_Click(object sender, EventArgs e)
         {
-            String command = $"Crash {ServerIdTextbox.Text}";
+            string command = $"Crash {ServerIdTextbox.Text}";
             try
             {
                 logic.SendCrashCommand(command);
@@ -48,7 +48,7 @@ namespace PuppetMasterGUI
 
         private void FreezeButton_Click(object sender, EventArgs e)
         {
-            String command = $"Freeze {ServerIdTextbox.Text}";
+            string command = $"Freeze {ServerIdTextbox.Text}";
             try
             {
                 logic.SendFreezeCommand(command);
@@ -62,7 +62,7 @@ namespace PuppetMasterGUI
 
         private void UnfreezeButton_Click(object sender, EventArgs e)
         {
-            String command = $"Unfreeze {ServerIdTextbox.Text}";
+            string command = $"Unfreeze {ServerIdTextbox.Text}";
             try 
             { 
                 logic.SendUnfreezeCommand(command);
