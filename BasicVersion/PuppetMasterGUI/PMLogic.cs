@@ -14,11 +14,13 @@ namespace PuppetMasterGUI
     {
         private const string PCSPort = "10000";
         private static Exception _Exception = null;
-        private string replicationFactor;
-        private Dictionary<string, string> serverMapping; // <server_id, url>
-        private Dictionary<string, string> clientMapping; // <client_username, url>
-        private Dictionary<string, List<string>> partitionsMapping; // <partition_id, server_id>
-        public string scriptFilename { get; set; }
+        private string ReplicationFactor;
+        private Dictionary<string, string> ServerMapping; // <server_id, url>
+        private Dictionary<string, string> ClientMapping; // <client_username, url>
+        private Dictionary<string, List<string>> PartitionMapping; // <partition_id, server_id>
+        private Dictionary<string, string> CrashedNodes; // name/id , url
+        private List<string> PCSList;
+        public string ScriptFilename { get; set; }
 
         // LOCKS
         private readonly object RFLock = new object();
@@ -26,12 +28,16 @@ namespace PuppetMasterGUI
         private readonly object ServerMapsLock = new object();
         private readonly object ClientMapsLock = new object();
         private readonly object PartMapsLock = new object();
+        private readonly object CrashedNodesLock = new object();
+        private readonly object PCSListLock = new object();
 
 
         public PMLogic() {
-            serverMapping = new Dictionary<string, string>();
-            clientMapping = new Dictionary<string, string>();
-            partitionsMapping = new Dictionary<string, List<string>>();
+            PCSList = new List<string>();
+            ServerMapping = new Dictionary<string, string>();
+            ClientMapping = new Dictionary<string, string>();
+            CrashedNodes = new Dictionary<string, string>();
+            PartitionMapping = new Dictionary<string, List<string>>();
             AppContext.SetSwitch(
             "System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
         }
@@ -41,7 +47,7 @@ namespace PuppetMasterGUI
         /// </summary>
         public async void RunScript()
         {
-            List<string> commands = ReadFileLines(scriptFilename);
+            List<string> commands = ReadFileLines(ScriptFilename);
 
             List<Task> tasks = new List<Task>();
 
@@ -123,7 +129,7 @@ namespace PuppetMasterGUI
             string[] splittedCommand = command.Split(" ");
             if (splittedCommand.Length == 2)
             {
-                lock (RFLock) { replicationFactor = splittedCommand[1]; }
+                lock (RFLock) { ReplicationFactor = splittedCommand[1]; }
             } else
             {
                 lock (ExceptLock)
@@ -142,6 +148,7 @@ namespace PuppetMasterGUI
             if (splittedCommand.Length == 4)
             {
                 string url = GetPCSUrlFromCommand(splittedCommand[2]);
+                AddPCSToList(url);
                 if (url != null)
                 {
                     GrpcChannel channel = GrpcChannel.ForAddress(url);
@@ -152,18 +159,31 @@ namespace PuppetMasterGUI
                         Url = splittedCommand[2],
                         ScriptFilename = splittedCommand[3]
                     };
-                    StartClientProcessReply reply = client.StartClientProcess(request);
 
-                    if (reply.Ok)
+                    try
                     {
-                        lock (ClientMapsLock) { clientMapping.TryAdd(splittedCommand[1], splittedCommand[2]); }
-                        // Only add to mappings if node started correctly
-                    } else
+                        StartClientProcessReply reply = client.StartClientProcess(request);
+                        if (reply.Ok)
+                        {
+                            // Only add to mappings if node started correctly
+                            lock (ClientMapsLock) { ClientMapping.TryAdd(splittedCommand[1], splittedCommand[2]); }
+                        }
+                        else
+                        {
+                            lock (ExceptLock)
+                                _Exception = new PCSNotOKException("PCS returned a NOT OK message.");
+                        }
+                    } catch (Exception e)
                     {
-                        lock (ExceptLock)
-                            _Exception = new PCSNotOKException("PCS returned a NOT OK message.");
+                        // TODO node is down, do something abt it
                     }
+                    
                 }
+            }
+            else
+            {
+                lock (ExceptLock)
+                    _Exception = new InvalidCommandException("The specified command is not valid. \nCommand: " + command);
             }
         }
 
@@ -177,6 +197,7 @@ namespace PuppetMasterGUI
             if (splittedCommand.Length == 5)
             {
                 string url = GetPCSUrlFromCommand(splittedCommand[2]);
+                AddPCSToList(url);
                 if (url != null) { 
                     GrpcChannel channel = GrpcChannel.ForAddress(url);
                     PCSServerService.PCSServerServiceClient client = new PCSServerService.PCSServerServiceClient(channel);
@@ -188,19 +209,29 @@ namespace PuppetMasterGUI
                         MaxDelay = splittedCommand[4]
                     };
 
-                    StartServerProcessReply reply = client.StartServerProcess(request);
-
-                    if (reply.Ok)
+                    try
                     {
-                        lock (ServerMapsLock) { serverMapping.TryAdd(splittedCommand[1], splittedCommand[2]); }
-                        // Only add to mappings if node started correctly
-                    }
-                    else
+                        StartServerProcessReply reply = client.StartServerProcess(request);
+                        if (reply.Ok)
+                        {
+                            lock (ServerMapsLock) { ServerMapping.TryAdd(splittedCommand[1], splittedCommand[2]); }
+                            // Only add to mappings if node started correctly
+                        }
+                        else
+                        {
+                            lock (ExceptLock)
+                                _Exception = new PCSNotOKException("PCS returned a NOT OK message.");
+                        }
+                    } catch (Exception e)
                     {
-                        lock (ExceptLock)
-                            _Exception = new PCSNotOKException("PCS returned a NOT OK message.");
+                        // TODO PCS is down, do something about it
                     }
                 }
+            }
+            else
+            {
+                lock (ExceptLock)
+                    _Exception = new InvalidCommandException("The specified command is not valid. \nCommand: " + command);
             }
         }
 
@@ -220,7 +251,12 @@ namespace PuppetMasterGUI
                     replicas.Add(splittedCommand[i]);
                 }
 
-                lock(PartMapsLock) { partitionsMapping.TryAdd(partitionId, replicas); }
+                lock(PartMapsLock) { PartitionMapping.TryAdd(partitionId, replicas); }
+            }
+            else
+            {
+                lock (ExceptLock)
+                    _Exception = new InvalidCommandException("The specified command is not valid. \nCommand: " + command);
             }
         }
 
@@ -230,15 +266,14 @@ namespace PuppetMasterGUI
         /// <param name="command"></param>
         public void SendStatusCommand()
         {
-            // TODO Send status, ignore reply for now, eventually show the status response...
-            foreach (KeyValuePair<string, string> entry in serverMapping)
+            foreach (KeyValuePair<string, string> entry in ServerMapping)
             {
-                GetNodeStatusReply reply = SendStatusRequest(entry.Value);
+                SendStatusRequest(entry.Value);
             }
 
-            foreach (KeyValuePair<string, string> entry in clientMapping)
+            foreach (KeyValuePair<string, string> entry in ClientMapping)
             {
-                GetNodeStatusReply reply = SendStatusRequest(entry.Value);
+                SendStatusRequest(entry.Value);
             }
         }
 
@@ -251,7 +286,8 @@ namespace PuppetMasterGUI
             string[] splittedCommand = command.Split(" ");
             if (splittedCommand.Length == 2)
             {
-                string url = GetServerUrl(splittedCommand[1]);
+                string serverId = splittedCommand[1];
+                string url = GetServerUrl(serverId);
                 if (url != null)
                 {
                     GrpcChannel channel = GrpcChannel.ForAddress(url);
@@ -261,8 +297,21 @@ namespace PuppetMasterGUI
                         State = ServerState.Crash
                     };
 
-                    client.ChangeServerState(request);
+                    try
+                    {
+                        client.ChangeServerState(request);
+                        DeleteServerFromMappings(serverId, url);
+                    } catch (Exception e)
+                    {
+                        // If the node crashed, we definitely want to remove it from the mappings
+                        DeleteServerFromMappings(serverId, url);
+                    }
                 }
+            }
+            else
+            {
+                lock (ExceptLock)
+                    _Exception = new InvalidCommandException("The specified command is not valid. \nCommand: " + command);
             }
         }
 
@@ -275,7 +324,8 @@ namespace PuppetMasterGUI
             string[] splittedCommand = command.Split(" ");
             if (splittedCommand.Length == 2)
             {
-                string url = GetServerUrl(splittedCommand[1]);
+                string serverId = splittedCommand[1];
+                string url = GetServerUrl(serverId);
                 if (url != null)
                 {
                     GrpcChannel channel = GrpcChannel.ForAddress(url);
@@ -285,8 +335,21 @@ namespace PuppetMasterGUI
                         State = ServerState.Freeze
                     };
 
-                    client.ChangeServerState(request);
+                    try
+                    {
+                        client.ChangeServerState(request);
+                    }
+                    catch (Exception e)
+                    {
+                        // If the node crashed, we definitely want to remove it from the mappings
+                        DeleteServerFromMappings(serverId, url);
+                    }
                 }
+            }
+            else
+            {
+                lock (ExceptLock)
+                    _Exception = new InvalidCommandException("The specified command is not valid. \nCommand: " + command);
             }
         }
 
@@ -299,7 +362,8 @@ namespace PuppetMasterGUI
             string[] splittedCommand = command.Split(" ");
             if (splittedCommand.Length == 2)
             {
-                string url = GetServerUrl(splittedCommand[1]);
+                string serverId = splittedCommand[1];
+                string url = GetServerUrl(serverId);
                 if (url != null)
                 {
                     GrpcChannel channel = GrpcChannel.ForAddress(url);
@@ -309,8 +373,20 @@ namespace PuppetMasterGUI
                         State = ServerState.Unfreeze
                     };
 
-                    client.ChangeServerState(request);
+                    try
+                    {
+                        client.ChangeServerState(request);
+                    } catch (Exception e)
+                    {
+                        // If the node crashed, we definitely want to remove it from the mappings
+                        DeleteServerFromMappings(serverId, url);
+                    }
                 }
+            }
+            else
+            {
+                lock (ExceptLock)
+                    _Exception = new InvalidCommandException("The specified command is not valid. \nCommand: " + command);
             }
         }
 
@@ -351,7 +427,7 @@ namespace PuppetMasterGUI
                 // First Send to Server
                 lock(ServerMapsLock)
                 {
-                    foreach (KeyValuePair<string, string> entry in serverMapping)
+                    foreach (KeyValuePair<string, string> entry in ServerMapping)
                     {
                         SendMapping(entry.Value);
                     }
@@ -360,7 +436,7 @@ namespace PuppetMasterGUI
                 // Then Send to Client
                 lock (ClientMapsLock)
                 {
-                    foreach (KeyValuePair<string, string> entry in clientMapping)
+                    foreach (KeyValuePair<string, string> entry in ClientMapping)
                     {
                         SendMapping(entry.Value);
                     }
@@ -375,33 +451,47 @@ namespace PuppetMasterGUI
 
 
         // ===== Auxiliary methods ====
-        private GetNodeStatusReply SendStatusRequest(string url)
+        private void SendStatusRequest(string url)
         {
             GrpcChannel channel = GrpcChannel.ForAddress(url);
             PuppetService.PuppetServiceClient client = new PuppetService.PuppetServiceClient(channel);
             GetNodeStatusRequest request = new GetNodeStatusRequest();
-            return client.GetStatus(request);
+            try
+            {
+                GetNodeStatusReply reply = client.GetStatus(request);
+            }
+            catch (Exception e)
+            {
+                // TODO node is down, do something about it 
+            }
         }
 
         private void SendMapping(string url)
         {
             GrpcChannel channel = GrpcChannel.ForAddress(url);
             PuppetService.PuppetServiceClient client = new PuppetService.PuppetServiceClient(channel);
-            SendMappingsReply reply = client.SendMappings(BuildMappingMessageRequest());
-            
-            if (!reply.Ok)
+
+            try
             {
-                lock (ExceptLock)
-                    _Exception = new SendMappingsException("Reply was NOT OK. Node: " + url);
-                // TODO decide what to do when a node fails to get the mappings
+                SendMappingsReply reply = client.SendMappings(BuildMappingMessageRequest());
+                if (!reply.Ok)
+                {
+                    lock (ExceptLock)
+                        _Exception = new SendMappingsException("Reply was NOT OK. Node: " + url);
+                    // TODO decide what to do when a node fails to get the mappings
+                }
+            } catch (Exception e)
+            {
+                // TODO node is down do something about 
             }
+            
         }
 
         private SendMappingsRequest BuildMappingMessageRequest()
         {
             SendMappingsRequest request = new SendMappingsRequest
             {
-                ReplicationFactor = replicationFactor
+                ReplicationFactor = ReplicationFactor
             };
             request.ClientMapping.AddRange(BuildClientMappingMessages());
             request.ServerMapping.AddRange(BuildServerMappingMessages());
@@ -416,7 +506,7 @@ namespace PuppetMasterGUI
 
             lock(ServerMapsLock)
             {
-                foreach (KeyValuePair<string, string> entry in serverMapping)
+                foreach (KeyValuePair<string, string> entry in ServerMapping)
                 {
                     servers.Add(new ServerMapping { ServerId = entry.Key, Url = entry.Value });
                 }
@@ -431,7 +521,7 @@ namespace PuppetMasterGUI
 
             lock(ClientMapsLock)
             {
-                foreach (KeyValuePair<string, string> entry in clientMapping)
+                foreach (KeyValuePair<string, string> entry in ClientMapping)
                 {
                     clients.Add(new ClientMapping { Username = entry.Key, Url = entry.Value });
                 }
@@ -445,7 +535,7 @@ namespace PuppetMasterGUI
 
             lock(PartMapsLock)
             {
-                foreach (KeyValuePair<string, List<string>> entry in partitionsMapping)
+                foreach (KeyValuePair<string, List<string>> entry in PartitionMapping)
                 {
                     PartitionMapping partition = new PartitionMapping { PartitionId = entry.Key };
                     partition.ServerId.AddRange(entry.Value);
@@ -492,7 +582,7 @@ namespace PuppetMasterGUI
         private string GetServerUrl(string serverId)
         {
             lock(ServerMapsLock)
-                return serverMapping.GetValueOrDefault(serverId);
+                return ServerMapping.GetValueOrDefault(serverId);
         }
 
         public List<string> GetServerIdsList()
@@ -501,12 +591,56 @@ namespace PuppetMasterGUI
 
             lock(ServerMapsLock)
             {
-                foreach (KeyValuePair<string, string> entry in serverMapping)
+                foreach (KeyValuePair<string, string> entry in ServerMapping)
                 {
                     servers.Add(entry.Key);
                 }
             }
             return servers;
+        }
+
+        private void DeleteServerFromMappings(string serverId, string serverUrl)
+        {
+            lock (ServerMapsLock) { ServerMapping.Remove(serverId); }
+            lock (CrashedNodesLock) { CrashedNodes.TryAdd(serverId, serverUrl); }
+            DeleteServerFromPartitions(serverId);
+            SendMappingsToAll();
+        }
+
+        private void DeleteClientFromMappings(string clientId)
+        {
+            lock (ClientMapsLock) { ClientMapping.Remove(clientId); }
+            SendMappingsToAll();
+        }
+
+        private void DeleteServerFromPartitions(string serverId)
+        {
+            lock (PartMapsLock)
+            {
+                foreach (KeyValuePair<string, List<string>> entry in PartitionMapping)
+                {
+                    List<string> servers = entry.Value;
+                    int index = servers.FindIndex(server => server.Equals(serverId));
+
+                    if (index != -1)
+                        servers.RemoveAt(index);
+
+                    // TODO create validation, if number of servers less than replication factor, start new server
+                }
+            }
+        }
+
+        private void AddPCSToList(string url)
+        {
+            lock (PCSListLock)
+            {
+                bool pcsInList = PCSList.Exists(pcs => pcs.Equals(url));
+
+                if (!pcsInList)
+                {
+                    PCSList.Add(url);
+                }
+            }
         }
     }
 }

@@ -29,12 +29,17 @@ namespace MainServer
             new Dictionary<UniqueKey, string>();
         // MyId stores the server id
         private string MyId;
+        private int minDelay;
+        private int maxDelay;
 
         public Boolean freeze = false;
         public Boolean crash = false;
 
-        public MainServerService(string Id){
+        public MainServerService(string Id, int minDelay, int maxDelay)
+        {
             this.MyId = Id;
+            this.minDelay = minDelay;
+            this.maxDelay = maxDelay;
         }
 
         public void SetDataCenter(Dictionary<string, List<string>> DataCenter){
@@ -55,7 +60,8 @@ namespace MainServer
         }
         public ReadResponse read(ReadRequest request)
         {
-            while (freeze) ;
+            while (freeze);
+            SetDelay();
             lock (StorageSystem){
                 if (StorageSystem.ContainsKey(request.UniqueKey)) {
                     return new ReadResponse
@@ -76,7 +82,8 @@ namespace MainServer
             return Task.FromResult(write(request));
         }
         public WriteResponse write(WriteRequest request) {
-            while (freeze) ;
+            while (freeze);
+            SetDelay();
             UniqueKey uKey = request.Object.UniqueKey;
             string value = request.Object.Value;
 
@@ -113,7 +120,8 @@ namespace MainServer
             return Task.FromResult(listServer(request));
         }
         public ListServerResponse listServer(ListServerRequest request){
-            while (freeze) ;
+            while (freeze);
+            SetDelay();
             ListServerResponse listServerResponse = new ListServerResponse();
             if (request.ServerId == MyId){
                 lock(StorageSystem) lock(DataCenter){
@@ -151,6 +159,7 @@ namespace MainServer
         }
         public ListEachGlobalResponse listEachGlobal(ListEachGlobalRequest request){
             while (freeze) ;
+            SetDelay();
             var listEachGlobalResponse = new ListEachGlobalResponse();
             lock(StorageSystem){
                 //GlobalStructure gStruct = new GlobalStructure();
@@ -171,6 +180,7 @@ namespace MainServer
         }
         public ListGlobalResponse listGlobal(ListGlobalRequest request){
             while (freeze) ;
+            SetDelay();
             var listGlobalResponse = new ListGlobalResponse();
             var listEachGlobalResponse = new ListEachGlobalResponse();
             Dictionary<string, string> tmpListServer = new Dictionary<string, string>(ServerList);
@@ -215,6 +225,14 @@ namespace MainServer
             }
         }
 
+        public void SetDelay()
+        {
+            Random rnd = new Random();
+            int delay = rnd.Next(minDelay, maxDelay + 1);
+            Thread.Sleep(delay);
+            Console.WriteLine($"Waited for {delay} milliseconds");
+        }
+
         class Program
         {
             
@@ -229,7 +247,7 @@ namespace MainServer
                     int ServerPort = int.Parse(ServerUrl.Split(':')[2]);
                     int min_delay = int.Parse(args[2]);
                     int max_delay = int.Parse(args[3]);
-                    int delay = rnd.Next(min_delay, max_delay + 1);
+                    
                                 
                     string hostname = (ServerUrl.Split(':')[1]).Substring(2);
                     string startupMessage;
@@ -238,7 +256,7 @@ namespace MainServer
                     serverPort = new ServerPort(hostname, ServerPort, ServerCredentials.Insecure);
                     startupMessage = "Server: " + ServerId + "\nListening on port: " + ServerPort;
 
-                    MainServerService serviceServer = new MainServerService(ServerId);
+                    MainServerService serviceServer = new MainServerService(ServerId, min_delay, max_delay);
                     PuppetServer puppetServer = new PuppetServer(serviceServer);
 
                     Server server = new Server
@@ -254,20 +272,9 @@ namespace MainServer
                     //Configuring HTTP for client connections in Register method
                     AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 
-                    while (true)
-                    {
-                        if (puppetServer.hasReceivedMappings)
-                        {
-                            serviceServer.printMappings();
-
-                            Console.WriteLine("Mappings received");
-                            Console.WriteLine("Input file executed.");
-
-                            break;
-                        }
-                    }
-
                     while (!serviceServer.crash) { }
+                    Thread.Sleep(1000);
+
                 } else {
                     Console.WriteLine("Received invalid arguments.");
                 }

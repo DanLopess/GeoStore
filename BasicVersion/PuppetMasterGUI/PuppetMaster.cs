@@ -6,7 +6,7 @@ using System.Windows.Forms;
 
 namespace PuppetMasterGUI
 {
-    static class Program
+    static class PuppetMaster
     {
         /// <summary>
         ///  The main entry point for the application.

@@ -35,7 +35,7 @@ namespace PuppetMasterGUI
 
         private void runScriptButton_Click(object sender, EventArgs e)
         {
-            logic.scriptFilename = configurationPath.Text;
+            logic.ScriptFilename = configurationPath.Text;
             
             try
             {

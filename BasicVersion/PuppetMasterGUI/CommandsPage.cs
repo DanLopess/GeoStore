@@ -26,19 +26,52 @@ namespace PuppetMasterGUI
         private void CrashButton_Click(object sender, EventArgs e)
         {
             String command = $"Crash {ServerIdTextbox.Text}";
-            logic.SendCrashCommand(command);
+            try
+            {
+                logic.SendCrashCommand(command);
+                ResetListBox();
+                MessageBox.Show("Crash command ran successfully!");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Oops! Something went wrong. Please try again.\n\nException: " + ex.GetType() + "\nMessage: " + ex.Message);
+            }
+        }
+
+        private void ResetListBox()
+        {
+            ServerIdTextbox.Text = "";
+            ServerList.Items.Clear();
+            servers = logic.GetServerIdsList();
+            servers.ForEach(server => ServerList.Items.Add(server));
         }
 
         private void FreezeButton_Click(object sender, EventArgs e)
         {
             String command = $"Freeze {ServerIdTextbox.Text}";
-            logic.SendFreezeCommand(command);
+            try
+            {
+                logic.SendFreezeCommand(command);
+                MessageBox.Show("Freeze command ran successfully!");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Oops! Something went wrong. Please try again.\n\nException: " + ex.GetType() + "\nMessage: " + ex.Message);
+            }
         }
 
         private void UnfreezeButton_Click(object sender, EventArgs e)
         {
             String command = $"Unfreeze {ServerIdTextbox.Text}";
-            logic.SendUnfreezeCommand(command);
+            try 
+            { 
+                logic.SendUnfreezeCommand(command);
+                MessageBox.Show("Unfreeze command ran successfully!");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Oops! Something went wrong. Please try again.\n\nException: " + ex.GetType() + "\nMessage: " + ex.Message);
+            }
         }
 
         private void ServerIdTextbox_TextChanged(object sender, EventArgs e)
@@ -69,8 +102,15 @@ namespace PuppetMasterGUI
 
         private void StatusButton_Click(object sender, EventArgs e)
         {
-            // TODO fix status command on server side
-            logic.SendStatusCommand();
+            try
+            {
+                logic.SendStatusCommand();
+                MessageBox.Show("Status command ran successfully!");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Oops! Something went wrong. Please try again.\n\nException: " + ex.GetType() + "\nMessage: " + ex.Message);
+            }
         }
 
         private void ServerIdLabel_Click(object sender, EventArgs e)

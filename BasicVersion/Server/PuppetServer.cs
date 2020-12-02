@@ -18,11 +18,9 @@ namespace MainServer
         private List<ClientMapping> clientMappings;
         private List<PartitionMapping> partitionMappings;
         private MainServerService server;
-        public bool hasReceivedMappings { get; set; }
 
         public PuppetServer(MainServerService server)
         {
-            hasReceivedMappings = false;
             this.server = server;
         }
 
@@ -32,14 +30,14 @@ namespace MainServer
         }
         public SendMappingsReply sendMappings(SendMappingsRequest request)
         {
-            this.serverMappings = request.ServerMapping.ToList();
-            this.clientMappings = request.ClientMapping.ToList();
-            this.partitionMappings = request.PartitionMapping.ToList();
+            server.SetDelay();
+            Console.WriteLine("\nReceived Mappings:\n");
+            serverMappings = request.ServerMapping.ToList();
+            partitionMappings = request.PartitionMapping.ToList();
 
             server.SetDataCenter(getDataCenter());
             server.SetServerList(getServerList());
-
-            this.hasReceivedMappings = true;
+            server.printMappings();
 
             return new SendMappingsReply { Ok = true };
         }
@@ -50,6 +48,7 @@ namespace MainServer
         }
         public GetNodeStatusReply getStatus()
         {
+            server.SetDelay();
             if (server.freeze){
                 Console.WriteLine("Server Status: Freeze");
             }
@@ -66,6 +65,7 @@ namespace MainServer
         }
         public ChangeServerStateReply changeServerState(ChangeServerStateRequest request)
         {
+            server.SetDelay();
             Console.WriteLine(request.State);
             if (request.State == ServerState.Freeze){
                 server.freeze = true;
