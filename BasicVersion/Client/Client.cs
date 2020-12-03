@@ -50,26 +50,27 @@ namespace Clients
 
         public void PrintMappings()
         {
-            lock (ClientListLock) {
+           // lock (ClientListLock) {
                 foreach (KeyValuePair<string, string> entry in ClientList)
                 {
                     Console.WriteLine($"Client {entry.Key} with URL: {entry.Value}");
                 } 
-            } lock (DataCenterLock)
-            {
+            //}// lock (DataCenterLock)
+            //{
                 foreach (KeyValuePair<string, List<String>> entry in DataCenter)
                 {
                     string servers = String.Join(", ", entry.Value.ToArray());
                     Console.WriteLine($"Partition {entry.Key} with Servers: {servers}");
                 }
-            }
+                Console.WriteLine("\n");
+            //}
         }
 
         public string GetServerId()
         {
             string id = "";
-            lock (ServerListLock)
-            {
+           // lock (ServerListLock)
+            //{
                 foreach (string key in ServerList.Keys)
                 {
                     if (ServerList[key].Equals(currentServer))
@@ -77,20 +78,24 @@ namespace Clients
                         id = key;
                     }
                 }
-            }
+           // }
             return id;
         }
 
 
         public void ConnectToServer()
         {
-            lock (ChannelLock) this.channel = GrpcChannel.ForAddress(currentServer);
-            lock (ClientLock) this.client = new ServerService.ServerServiceClient(this.channel);
+           //lock (ChannelLock)
+           this.channel = GrpcChannel.ForAddress(currentServer);
+           //lock (ClientLock) 
+           this.client = new ServerService.ServerServiceClient(this.channel);
+          
         }
 
         public void SetCurrentServer(string server)
         {
-            lock (CurrentServerLock) this.currentServer = server;
+            //lock (CurrentServerLock) 
+            this.currentServer = server;
         }
 
         public void ParseInputFile()
@@ -127,14 +132,19 @@ namespace Clients
                             Console.WriteLine("end-repeat");
                         }
                         else {
+
+                            SwitchCase(line, -1);
+                            /*
+                            
                             Task task = Task.Run(() => SwitchCase(line, -1));
                             tasks.Add(task);
+                            */
                         }
                         
                     }
                 }
 
-                Task.WaitAll(tasks.ToArray());
+                //Task.WaitAll(tasks.ToArray());
 
                 // Rethrow last exception thrown in Tasks
                 if (_Exception != null)
@@ -213,7 +223,7 @@ namespace Clients
                 Console.WriteLine(response);
             } catch
             {
-                // TODO SOMETHING ABOUT THIS EXCEPTION
+                Console.WriteLine($"Server {currentServer} is not available");
             }
         }
 
@@ -222,18 +232,36 @@ namespace Clients
         {
             string server_id = GetServerId();
 
-            lock (DataCenterLock)
+            // lock (DataCenterLock)
+            //{
+            if (DataCenter.ContainsKey(partitionId))
             {
+                
                 if (!DataCenter[partitionId][0].Equals(server_id))
                 {
                     server_id = DataCenter[partitionId][0];
-                    SetCurrentServer(ServerList[server_id]);
-                    ConnectToServer();
+                    if (ServerList.ContainsKey(server_id))
+                    {
+                        SetCurrentServer(ServerList[server_id]);
+                        ConnectToServer();
+                       }
+                    else
+                    {
+                        Console.WriteLine($"Server {server_id} is not available");
+                        return;
+                       
+                    }
                 }
+                Write(partitionId, objectId, value, beginRepeat);
             }
-            Write(partitionId, objectId, value, beginRepeat);
+            else
+            {
+                Console.WriteLine($"Partition {partitionId} is not available");
+            }
+            //}
+            
         }
-        public WriteResponse Write(string partitionId, string objectId, string value, int beginRepeat)
+        public void Write(string partitionId, string objectId, string value, int beginRepeat)
         {
             if (beginRepeat != -1)
             {
@@ -249,24 +277,29 @@ namespace Clients
             o.UniqueKey = uniqueKey;
             o.Value = value;
 
-
-            WriteResponse response = client.Write(new WriteRequest
+            try
             {
-                Object = o
+                WriteResponse response = client.Write(new WriteRequest
+                {
+                    Object = o
 
-            });
-            if (response.Ok)
-            {
-                Console.WriteLine("Write completed!");
+                });
+                if (response.Ok)
+                {
+                    Console.WriteLine("Write completed!");
+                }
+                else
+                {
+                    Console.WriteLine("Error in write");
+                }
+
             }
-            else
+            catch
             {
-                Console.WriteLine("Error in write");
+                Console.WriteLine($"Server {currentServer} is not available");
+                //lista de servidores ligados e escolher um de lá,ao receber mappings,limpar a lista
             }
-
-            return response;
-
-        }
+         }
         public void ListServer(string server_id, int beginRepeat)
         {
 
@@ -354,26 +387,26 @@ namespace Clients
 
         public void SetDataCenter(Dictionary<string, List<string>> DataCenter)
         {
-            lock(DataCenter)
-            {
+          //  lock(DataCenter)
+           // {
                 this.DataCenter = DataCenter;
-            }
+           // }
         }
 
         public void SetServerList(Dictionary<string, string> Servers)
         {
-            lock (ServerList)
-            {
+           // lock (ServerList)
+           // {
                 this.ServerList = Servers;
-            }
+           // }
         }
 
         public void SetClientList(Dictionary<string, string> Clients)
         {
-            lock (ClientList)
-            {
+         //   lock (ClientList)
+         //   {
                 this.ClientList = Clients;
-            }
+         //   }
         }
 
         public static class Program
@@ -417,8 +450,6 @@ namespace Clients
                             if (puppetClient.hasReceivedMappings)
                             {
                                 client.PrintMappings();
-
-                                Console.WriteLine("Mappings received");
 
                                 client.ParseInputFile();
 
