@@ -97,12 +97,15 @@ namespace MainServer
                         if (OtherServer.Count != 0){
                             lock(ServerList){
                                 foreach (var item in OtherServer){
-                                    string url = ServerList[item];
-                                    channel = GrpcChannel.ForAddress(url);
-                                    ServerService.ServerServiceClient server =
-                                        new ServerService.ServerServiceClient(channel);
-                                    server.WriteAsync(request);
-                                }
+                                    try{
+                                        string url = ServerList[item];
+                                        channel = GrpcChannel.ForAddress(url);
+                                        ServerService.ServerServiceClient server =
+                                            new ServerService.ServerServiceClient(channel);
+                                        server.WriteAsync(request);
+                                    } catch {
+                                        Console.WriteLine($"Server {MyId} is not available");
+                                    }
                             }
                         }
                     }
@@ -144,10 +147,14 @@ namespace MainServer
             } else {
                 lock(ServerList){
                     string url = ServerList[request.ServerId];
-                    channel = GrpcChannel.ForAddress(url);
-                    ServerService.ServerServiceClient server =
-                        new ServerService.ServerServiceClient(channel);
-                    listServerResponse = server.ListServer(request);
+                    try{
+                        channel = GrpcChannel.ForAddress(url);
+                        ServerService.ServerServiceClient server =
+                            new ServerService.ServerServiceClient(channel);
+                        listServerResponse = server.ListServer(request);
+                    } catch {
+                        Console.WriteLine($"Server {request.ServerId} is not available");
+                    }
                 }
             }
             return listServerResponse;
@@ -199,13 +206,16 @@ namespace MainServer
 
             foreach (var item in tmpListServer) {
                 string url = item.Value;
-                channel = GrpcChannel.ForAddress(url);
-                ServerService.ServerServiceClient server = new ServerService.ServerServiceClient(channel);
-                ListEachGlobalRequest lsRequest = new ListEachGlobalRequest{ ServerId = item.Key};
-
-                listEachGlobalResponse = server.ListEachGlobal(lsRequest);
-                foreach(var tmp in listEachGlobalResponse.UniqueKeyList){
-                    listGlobalResponse.UniqueKeyList.Add(tmp);
+                try{
+                    channel = GrpcChannel.ForAddress(url);
+                    ServerService.ServerServiceClient server = new ServerService.ServerServiceClient(channel);
+                    ListEachGlobalRequest lsRequest = new ListEachGlobalRequest{ ServerId = item.Key};
+                    listEachGlobalResponse = server.ListEachGlobal(lsRequest);
+                    foreach(var tmp in listEachGlobalResponse.UniqueKeyList){
+                        listGlobalResponse.UniqueKeyList.Add(tmp);
+                    }
+                } catch {
+                    Console.WriteLine($"Server {lsRequest.ServerId} is not available"); 
                 }
             }
 
