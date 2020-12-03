@@ -49,13 +49,17 @@ namespace MainServer
         public GetNodeStatusReply getStatus()
         {
             server.SetDelay();
+            Console.WriteLine("============ STATUS ==========\n");
             if (server.freeze){
-                Console.WriteLine("Server Status: Frozen");
+                Console.WriteLine("Server Status: Freeze");
             }
             else if (!server.freeze){
                 Console.WriteLine("Server Status: Normal");
             }
-            
+            Console.WriteLine("Mappings:\n");
+            server.printMappings();
+            Console.WriteLine("==============================");
+
             return new GetNodeStatusReply { Ok = true, Response = "Server running" };
         }
 

@@ -19,6 +19,7 @@ namespace Clients
         private string username;
         private string myURL;
         private string[] lines;
+        private static Exception _Exception = null;
 
         // ServerList = <serverId, URL>
         public Dictionary<string, string> ServerList = new Dictionary<string, string>();
@@ -26,6 +27,15 @@ namespace Clients
         public Dictionary<string, List<string>> DataCenter = new Dictionary<string, List<string>>();
         //ClientList= <username,URL>
         public Dictionary<string, string> ClientList = new Dictionary<string, string>();
+
+        // LOCKS
+        private readonly object ExceptionLock = new object();
+        private readonly object ServerListLock = new object();
+        private readonly object DataCenterLock = new object();
+        private readonly object ClientListLock = new object();
+        private readonly object CurrentServerLock = new object();
+        private readonly object ChannelLock = new object();
+        private readonly object ClientLock = new object();
 
         public Client(string client_username, string client_URL, string script_file)
         {
@@ -38,28 +48,34 @@ namespace Clients
             Console.WriteLine($"Client {username} started at {myURL}");
         }
 
-        // DELETE THIS
         public void PrintMappings()
         {
-            foreach (KeyValuePair<string, string> entry in ClientList)
+            lock (ClientListLock) {
+                foreach (KeyValuePair<string, string> entry in ClientList)
+                {
+                    Console.WriteLine($"Client {entry.Key} with URL: {entry.Value}");
+                } 
+            } lock (DataCenterLock)
             {
-                Console.WriteLine($"Client {entry.Key} with URL: {entry.Value}");
-            }
-            foreach (KeyValuePair<string, List<String>> entry in DataCenter)
-            {
-                string servers = String.Join(", ", entry.Value.ToArray());
-                Console.WriteLine($"Partition {entry.Key} with Servers: {servers}");
+                foreach (KeyValuePair<string, List<String>> entry in DataCenter)
+                {
+                    string servers = String.Join(", ", entry.Value.ToArray());
+                    Console.WriteLine($"Partition {entry.Key} with Servers: {servers}");
+                }
             }
         }
 
         public string GetServerId()
         {
             string id = "";
-            foreach (string key in ServerList.Keys)
+            lock (ServerListLock)
             {
-                if (ServerList[key].Equals(currentServer))
+                foreach (string key in ServerList.Keys)
                 {
-                    id = key;
+                    if (ServerList[key].Equals(currentServer))
+                    {
+                        id = key;
+                    }
                 }
             }
             return id;
@@ -68,19 +84,19 @@ namespace Clients
 
         public void ConnectToServer()
         {
-            this.channel = GrpcChannel.ForAddress(currentServer);
-            this.client = new ServerService.ServerServiceClient(this.channel);
+            lock (ChannelLock) this.channel = GrpcChannel.ForAddress(currentServer);
+            lock (ClientLock) this.client = new ServerService.ServerServiceClient(this.channel);
         }
 
         public void SetCurrentServer(string server)
         {
-            this.currentServer = server;
+            lock (CurrentServerLock) this.currentServer = server;
         }
 
         public void ParseInputFile()
         {
             String[] line = new String[lines.Length];
-            Thread[] array = new Thread[lines.Length];
+            List<Task> tasks = new List<Task>();
 
             int count = 0;
             if (lines.Length > 0 && ServerList.Count > 0)
@@ -98,20 +114,33 @@ namespace Clients
                 for (int i = 0; i < lines.Length; i++)
                 {
                     line = lines[i].Split(' ');
-
-                    if (line[0] == "begin-repeat")
+                    if (line[0].Contains("Wait"))
                     {
-                        count = BeginRepeat(i, int.Parse(line[1]));
-                        i = i + count;
-                        Console.WriteLine("end-repeat");
-
+                        Wait(int.Parse(line[1]));
                     }
-                    else { SwitchCase(line, -1); }
+                    else
+                    {
+                        if (line[0] == "begin-repeat")
+                        {
+                            count = BeginRepeat(i, int.Parse(line[1]));
+                            i = i + count;
+                            Console.WriteLine("end-repeat");
+                        }
+                        else {
+                            Task task = Task.Run(() => SwitchCase(line, -1));
+                            tasks.Add(task);
+                        }
+                        
+                    }
+                }
 
-                    /*
-                   array[i] = new Thread(() => switchCase(line, i));
-                   array[i].Start();
-                   */
+                Task.WaitAll(tasks.ToArray());
+
+                // Rethrow last exception thrown in Tasks
+                if (_Exception != null)
+                {
+                    //throw _Exception;
+                    Console.WriteLine("Exception was thrown!!!");
                 }
             }
 
@@ -134,9 +163,6 @@ namespace Clients
                 case "listGlobal":
                     ListGlobal(beginRepeat);
                     break;
-                case "wait":
-                    Wait(int.Parse(line[1]));
-                    break;
             }
         }
 
@@ -148,40 +174,47 @@ namespace Clients
             }
             return s;
         }
-        public ReadResponse Read(string partitionId, string objectId, string server_id, int beginRepeat)
+        public void Read(string partitionId, string objectId, string server_id, int beginRepeat)
         {
             UniqueKey uniqueKey = new UniqueKey();
             uniqueKey.PartitionId = partitionId;
             uniqueKey.ObjectId = objectId;
 
-            ReadResponse response = client.Read(new ReadRequest
+            try
             {
-                UniqueKey = uniqueKey,
-                ServerId = server_id
-            });
-
-            if (response.Value.Equals("N/A") && !server_id.Equals("-1"))
-            {
-                Console.WriteLine("Current Server doesn't have the object. Changing Server ...");
-
-                SetCurrentServer(server_id);
-                ConnectToServer();
-
-                response = client.Read(new ReadRequest
+                ReadResponse response = client.Read(new ReadRequest
                 {
                     UniqueKey = uniqueKey,
                     ServerId = server_id
                 });
-                Console.WriteLine("Response from the new server:");
-            }
-            if (beginRepeat != -1)
+
+                if (response.Value.Equals("N/A") && !server_id.Equals("-1"))
+                {
+                    Console.WriteLine("Current Server doesn't have the object. Changing Server ...");
+
+                    SetCurrentServer(server_id);
+                    ConnectToServer();
+
+                    response = client.Read(new ReadRequest
+                    {
+                        UniqueKey = uniqueKey,
+                        ServerId = server_id
+                    });
+                    Console.WriteLine("Response from the new server:");
+                } else
+                {
+                    // TODO THIS
+                }
+                if (beginRepeat != -1)
+                {
+                    response.Value = CheckReplace(response.Value, beginRepeat);
+
+                }
+                Console.WriteLine(response);
+            } catch
             {
-                response.Value = CheckReplace(response.Value, beginRepeat);
-
+                // TODO SOMETHING ABOUT THIS EXCEPTION
             }
-            Console.WriteLine(response);
-
-            return response;
         }
 
         
@@ -189,7 +222,7 @@ namespace Clients
         {
             string server_id = GetServerId();
 
-            lock (DataCenter)
+            lock (DataCenterLock)
             {
                 if (!DataCenter[partitionId][0].Equals(server_id))
                 {
@@ -283,7 +316,6 @@ namespace Clients
         public void Wait(int x)
         {
             Thread.Sleep(x);
-
         }
 
         public int BeginRepeat(int i, int x)
