@@ -100,39 +100,23 @@ namespace Clients
         public void SetCurrentServer(string server)
         {
             lock (CurrentServerLock)
+            {
                 this.currentServer = server;
-
+            }
         }
 
-        //mode = 1 to check if there is a server with the given server_id available
-        //mode = 2 to check if there is a server with the given URL available
-        public Boolean ServerAvailable(string server, int mode)
+        public Boolean ServerAvailable(string server)
         {
-            if (mode == 1)
+            if (ServerList.ContainsKey(server))
             {
-                if (ServerList.ContainsKey(server))
-                {
-                    return true;
-                }
-                Console.WriteLine($"Server {server} is not available");
-                return false;
+                return true;
             }
 
-            else if (mode == 2)
-            {
-                if (ServerList.ContainsValue(server))
-                {
-                    return true;
-                }
-                Console.WriteLine($"Server {server} is not available");
-                return false;
-            }
             else
             {
-                Console.WriteLine($"Cannot check if the server is running. Returning False ...");
+                Console.WriteLine($"Server {server} is not available");
                 return false;
             }
-
         }
 
         public Boolean PartitionAvailable(string partitionId)
@@ -250,11 +234,11 @@ namespace Clients
                         ServerId = server_id
                     });
 
-                    if (response.Value.Equals("N/A") && !server_id.Equals("-1") && ServerAvailable(server_id, 1))
+                    if (response.Value.Equals("N/A") && !server_id.Equals("-1") && ServerAvailable(server_id))
                     {
                         Console.WriteLine("Current Server doesn't have the object. Changing Server ...");
 
-                        SetCurrentServer(server_id);
+                        SetCurrentServer(ServerList[server_id]);
                         ConnectToServer();
 
                         response = client.Read(new ReadRequest
@@ -350,7 +334,7 @@ namespace Clients
         }
         public void ListServer(string server_id, int beginRepeat)
         {
-            if (ServerAvailable(server_id,1))
+            if (ServerAvailable(server_id))
             {
                 try
                 {
