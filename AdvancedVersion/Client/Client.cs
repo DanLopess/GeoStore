@@ -303,9 +303,11 @@ namespace Clients
                 catch
                 {
                     Console.WriteLine($"Server {this.currentServer} is not available");
-                    ChangeServer();
-                    Read(partitionId, objectId, server_id, beginRepeat);
-
+                    server_id = ChangeServer();
+                    if (!server_id.Equals("None"))
+                    {
+                        Read(partitionId, objectId, server_id, beginRepeat);
+                    }
                 }
             }
             return;
@@ -375,7 +377,11 @@ namespace Clients
             catch
             {
                 Console.WriteLine($"Server {this.currentServer} is not available");
-                ChangeServer();
+                string server_id = ChangeServer();
+                if (!server_id.Equals("None"))
+                {
+                    Write(partitionId, objectId, value, beginRepeat);
+                }
             }
 
         }
@@ -410,7 +416,11 @@ namespace Clients
                 catch
                 {
                     Console.WriteLine($"Server {this.currentServer} is not available");
-                    ChangeServer();
+                    server_id = ChangeServer();
+                    if (!server_id.Equals("None"))
+                    {
+                        ListServer(server_id, beginRepeat);
+                    }
                 }
             }
             else
@@ -450,7 +460,11 @@ namespace Clients
             catch
             {
                 Console.WriteLine($"Server {this.currentServer} is not available");
-                ChangeServer();
+                string server_id = ChangeServer();
+                if (!server_id.Equals("None"))
+                {
+                    ListGlobal(beginRepeat);
+                }
             }
         }
         public void Wait(int x)
