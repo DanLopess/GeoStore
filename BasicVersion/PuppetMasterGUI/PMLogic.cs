@@ -167,6 +167,7 @@ namespace PuppetMasterGUI
                         {
                             // Only add to mappings if node started correctly
                             lock (ClientMapsLock) { ClientMapping.TryAdd(splittedCommand[1], splittedCommand[2]); }
+                            SendMappingsToAll();
                         }
                         else
                         {

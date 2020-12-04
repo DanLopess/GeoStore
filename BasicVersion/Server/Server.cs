@@ -87,30 +87,29 @@ namespace MainServer
             UniqueKey uKey = request.Object.UniqueKey;
             string value = request.Object.Value;
 
-            lock(StorageSystem){
+            lock (StorageSystem) {
                 StorageSystem.Add(uKey, value);
-                lock(DataCenter){
-                    if (DataCenter[uKey.PartitionId][0] == MyId){
-                        List<string> OtherServer = new List<string>(DataCenter[uKey.PartitionId]); 
-                        OtherServer.RemoveAt(0);
-
-                        if (OtherServer.Count != 0){
-                            lock(ServerList)
+            }
+            lock(DataCenter){
+                if (DataCenter[uKey.PartitionId][0] == MyId){
+                    List<string> OtherServer = new List<string>(DataCenter[uKey.PartitionId]); 
+                    OtherServer.RemoveAt(0);
+                    if (OtherServer.Count != 0){
+                        lock(ServerList)
+                        {
+                            foreach (var item in OtherServer)
                             {
-                                foreach (var item in OtherServer)
+                                try
                                 {
-                                    try
-                                    {
-                                        string url = ServerList[item];
-                                        channel = GrpcChannel.ForAddress(url);
-                                        ServerService.ServerServiceClient server =
-                                            new ServerService.ServerServiceClient(channel);
-                                        server.WriteAsync(request);
-                                    }
-                                    catch
-                                    {
-                                        Console.WriteLine($"Server {MyId} is not available");
-                                    }
+                                    string url = ServerList[item];
+                                    channel = GrpcChannel.ForAddress(url);
+                                    ServerService.ServerServiceClient server =
+                                        new ServerService.ServerServiceClient(channel);
+                                    server.WriteAsync(request);
+                                }
+                                catch
+                                {
+                                    Console.WriteLine($"Server {MyId} is not available");
                                 }
                             }
                         }
@@ -147,7 +146,6 @@ namespace MainServer
                             listObj.IsMaster = false;
                         }
                         listServerResponse.ListServerObj.Add(listObj);
-
                     }
                 }
             } else {

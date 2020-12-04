@@ -234,18 +234,9 @@ namespace Clients
         {
             if (PartitionAvailable(partitionId))
             {
-
                 UniqueKey uniqueKey = new UniqueKey();
                 uniqueKey.PartitionId = partitionId;
                 uniqueKey.ObjectId = objectId;
-                if (beginRepeat != -1)
-                {
-                    uniqueKey.ObjectId = CheckReplace(objectId, beginRepeat);
-                }
-                else
-                {
-                    uniqueKey.ObjectId = objectId;
-                }
 
                 try
                 {
@@ -363,6 +354,7 @@ namespace Clients
                     {
                         ServerId = server_id
                     });
+                    Console.WriteLine($"\t-----ListServer {server_id}-----");
                     foreach (ListServerObj server in response.ListServerObj)
                     {
                         string output = $" partitionId {server.Object.UniqueKey.PartitionId} " +
@@ -380,6 +372,7 @@ namespace Clients
                         }
                         Console.WriteLine(output);
                     }
+                    Console.WriteLine($"\t---ListServer {server_id} End---");
                 }
                 catch
                 {
@@ -396,7 +389,7 @@ namespace Clients
             try
             {
                 ListGlobalResponse response = client.ListGlobal(new ListGlobalRequest { });
-                Console.WriteLine("----ListGlobal----");
+                Console.WriteLine("\t----ListGlobal----");
                 foreach (GlobalStructure globalStructure in response.GlobalList)
                 {
                     string output = $"server {globalStructure.ServerId} with objects:\n";
@@ -418,7 +411,7 @@ namespace Clients
                     Console.WriteLine(output);
                     output = "";
                 }
-                Console.WriteLine("--ListGlobalEnd--");
+                Console.WriteLine("\t--ListGlobalEnd--");
             }
             catch
             {

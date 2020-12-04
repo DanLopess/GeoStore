@@ -10,7 +10,6 @@ using System.Linq;
 
 namespace Clients
 {
-
     public class Client
     {
         private ServerService.ServerServiceClient client;
@@ -121,25 +120,18 @@ namespace Clients
         }
 
         //change to a new server after a server crash to avoid errors until the reception of updated mappings
-        public void ChangeServer()
+        public string ChangeServer()
         {
             string partition = getServerPartition(this.currentServer);
             if (DataCenter[partition].Count != 1)
             {
-                SetCurrentServer(partition);
+                SetCurrentServer(DataCenter[partition][1]);
+                return DataCenter[partition][1];
             }
             else
             {   
-                //remove the partition from the dictionary and connect to a new Master server randomly
-                DataCenter.Remove(partition);
-                Random rnd = new Random();
-                int position = rnd.Next(0,DataCenter.Count-1);
-                string newPartition = DataCenter.ElementAt(position).Key;
-                string serverId = DataCenter[partition][0];
-                string serverUrl = ServerList[serverId];
-                SetCurrentServer(serverUrl);
-                ConnectToServer();
-                Console.WriteLine($"Connecting to {serverUrl}, Master for the partition {newPartition} ...");
+                Console.WriteLine("Partition has no available servers");
+                return "None";
             }
         }
 
@@ -312,6 +304,8 @@ namespace Clients
                 {
                     Console.WriteLine($"Server {this.currentServer} is not available");
                     ChangeServer();
+                    Read(partitionId, objectId, server_id, beginRepeat);
+
                 }
             }
             return;

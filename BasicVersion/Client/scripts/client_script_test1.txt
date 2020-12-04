@@ -1,0 +1,8 @@
+begin-repeat 3
+write p1 o$i "p2-o$i-v1"
+wait 1000
+end-repeat
+read p1 o1 -1
+read p1 o2 -1
+read p1 o3 -1
+listGlobal
