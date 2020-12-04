@@ -114,8 +114,6 @@ namespace MainServer
             AddObjectToStorageSystem(obj);
             UnlockObject(uKey);
 
-            Console.WriteLine($"FINAL WRITE DONE (Object Id: {obj.UniqueKey.ObjectId})");
-
             return new WriteResponse
             {
                 Ok = true
@@ -136,8 +134,6 @@ namespace MainServer
 
                 // 1st Write to storage System
                 AddObjectToStorageSystem(obj);
-
-                Console.WriteLine($"WROTE (Object Id: {obj.UniqueKey.ObjectId})");
 
                 // 2nd Unlocks the object
                 UnlockObject(uKey);
@@ -441,10 +437,6 @@ namespace MainServer
         {
             lock (SSLock) StorageSystem.TryAdd(obj.UniqueKey, obj.Value);
             
-            foreach (KeyValuePair<UniqueKey, string> item in StorageSystem)
-            {
-                Console.WriteLine($"Key: {item.Key} Value: {item.Value}");
-            }
         }
         class Program
         {
