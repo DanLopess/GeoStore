@@ -132,6 +132,37 @@ namespace Clients
             }
         }
 
+        public string getServerPartition(string server)
+        {
+            string partition = "";
+            if (!currentServer.Equals(""))
+            {
+                foreach (string key in DataCenter.Keys)
+                {
+                    if (DataCenter[key][0].Equals(server)) ;
+                    partition = key;
+                    return partition;
+                }
+            }
+            return partition;
+        }
+        //change to a new server after a server crash to avoid errors until the reception of updated mappings
+        public string ChangeServer()
+        {
+            string partition = getServerPartition(this.currentServer);
+            if (DataCenter[partition].Count != 1)
+            {
+                SetCurrentServer(DataCenter[partition][1]);
+                return DataCenter[partition][1];
+            }
+            else
+            {
+                Console.WriteLine("Partition has no available servers");
+                return "None";
+            }
+        }
+
+
 
         public void ParseInputFile()
         {
@@ -245,6 +276,11 @@ namespace Clients
                 catch
                 {
                     Console.WriteLine($"Server {this.currentServer} is not available");
+                    server_id = ChangeServer();
+                    if (!server_id.Equals("None"))
+                    {
+                        Read(partitionId, objectId, server_id, beginRepeat);
+                    }
                 }
             }
             return;
@@ -259,17 +295,14 @@ namespace Clients
             {
                 if (PartitionAvailable(partitionId))
                 {
-                    Console.WriteLine(DataCenter[partitionId][0]);
-                    Console.WriteLine(server_id);
                     if (!DataCenter[partitionId][0].Equals(server_id))
                     {
                         server_id = DataCenter[partitionId][0];
                         SetCurrentServer(ServerList[server_id]);
                         Console.WriteLine("Changing to the Master server for this partition ...");
                     }
-                    Console.WriteLine(currentServer);
+                    
                     ConnectToServer();
-                    Console.WriteLine(currentServer);
                     Write(partitionId, objectId, value, beginRepeat);
                 }
                 else
@@ -315,6 +348,12 @@ namespace Clients
             catch
             {
                 Console.WriteLine($"Server {this.currentServer} is not available");
+                string server_id = ChangeServer();
+                if (!server_id.Equals("None"))
+                {
+                    Write(partitionId, objectId, value, beginRepeat);
+                }
+
             }
 
         }
@@ -328,7 +367,7 @@ namespace Clients
                     {
                         ServerId = server_id
                     });
-                    Console.WriteLine($"\t-----ListServer {server_id}-----");
+                    Console.WriteLine($"--------ListServer {server_id}--------");
                     foreach (ListServerObj server in response.ListServerObj)
                     {
                         string output = $" partitionId {server.Object.UniqueKey.PartitionId} " +
@@ -346,11 +385,16 @@ namespace Clients
                         }
                         Console.WriteLine(output);
                     }
-                    Console.WriteLine($"\t---ListServer {server_id} End---");
+                    Console.WriteLine($"-------ListServer {server_id} End-------");
                 }
                 catch
                 {
                     Console.WriteLine($"Server {this.currentServer} is not available");
+                    server_id = ChangeServer();
+                    if (!server_id.Equals("None"))
+                    {
+                        ListServer(server_id, beginRepeat);
+                    }
                 }
             }
             else
@@ -363,7 +407,7 @@ namespace Clients
             try
             {
                 ListGlobalResponse response = client.ListGlobal(new ListGlobalRequest { });
-                Console.WriteLine("\t----ListGlobal----");
+                Console.WriteLine("----------ListGlobal----------");
                 foreach (GlobalStructure globalStructure in response.GlobalList)
                 {
                     string output = $"server {globalStructure.ServerId} with objects:\n";
@@ -385,11 +429,16 @@ namespace Clients
                     Console.WriteLine(output);
                     output = "";
                 }
-                Console.WriteLine("\t--ListGlobalEnd--");
+                Console.WriteLine("---------ListGlobalEnd---------");
             }
             catch
             {
                 Console.WriteLine($"Server {this.currentServer} is not available");
+                string server_id = ChangeServer();
+                if (!server_id.Equals("None"))
+                {
+                    ListGlobal(beginRepeat);
+                }
             }
         }
         public void Wait(int x)
