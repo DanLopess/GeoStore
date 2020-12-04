@@ -23,7 +23,15 @@ service ServerService {
 	rpc Wait (WaitRequest) returns (WaitResponse);
 	rpc BeginRepeat (BeginRepeatRequest) returns (BeginRepeatResponse);
 	rpc EndRepeat (EndRepeatRequest) returns (EndRepeatResponse);
-	
+	rpc LockObject (LockObjectRequest) returns (LockObjectResponse);
+}
+
+message LockObjectRequest {
+	UniqueKey uniqueKey = 1;
+}
+
+message LockObjectResponse {
+	bool ok = 1;
 }
 
 message UniqueKey{

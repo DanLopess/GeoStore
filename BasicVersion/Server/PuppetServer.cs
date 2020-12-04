@@ -14,14 +14,14 @@ namespace MainServer
 {
     public class PuppetServer : PuppetService.PuppetServiceBase
     {
-        private List<ServerMapping> serverMappings;
-        private List<ClientMapping> clientMappings;
-        private List<PartitionMapping> partitionMappings;
-        private MainServerService server;
+        private List<ServerMapping> ServerMappings;
+        private List<ClientMapping> ClientMappings;
+        private List<PartitionMapping> PartitionMappings;
+        private MainServerService Server;
 
         public PuppetServer(MainServerService server)
         {
-            this.server = server;
+            this.Server = server;
         }
 
         public override Task<SendMappingsReply> SendMappings(SendMappingsRequest request, ServerCallContext context)
@@ -30,14 +30,14 @@ namespace MainServer
         }
         public SendMappingsReply sendMappings(SendMappingsRequest request)
         {
-            server.SetDelay();
+            Server.SetDelay();
             Console.WriteLine("\nReceived Mappings:\n");
-            serverMappings = request.ServerMapping.ToList();
-            partitionMappings = request.PartitionMapping.ToList();
+            ServerMappings = request.ServerMapping.ToList();
+            PartitionMappings = request.PartitionMapping.ToList();
 
-            server.SetDataCenter(getDataCenter());
-            server.SetServerList(getServerList());
-            server.printMappings();
+            Server.SetDataCenter(getDataCenter());
+            Server.SetServerList(getServerList());
+            Server.PrintMappings();
 
             return new SendMappingsReply { Ok = true };
         }
@@ -48,16 +48,16 @@ namespace MainServer
         }
         public GetNodeStatusReply getStatus()
         {
-            server.SetDelay();
+            Server.SetDelay();
             Console.WriteLine("============ STATUS ==========\n");
-            if (server.freeze){
+            if (Server.Freeze){
                 Console.WriteLine("Server Status: Freeze");
             }
-            else if (!server.freeze){
+            else if (!Server.Freeze){
                 Console.WriteLine("Server Status: Normal");
             }
             Console.WriteLine("Mappings:\n");
-            server.printMappings();
+            Server.PrintMappings();
             Console.WriteLine("==============================");
 
             return new GetNodeStatusReply { Ok = true, Response = "Server running" };
@@ -69,16 +69,16 @@ namespace MainServer
         }
         public ChangeServerStateReply changeServerState(ChangeServerStateRequest request)
         {
-            server.SetDelay();
+            Server.SetDelay();
             Console.WriteLine("Changed server state to: " + request.State);
             if (request.State == ServerState.Freeze){
-                server.freeze = true;
+                Server.Freeze = true;
             }
             else if (request.State == ServerState.Unfreeze){
-                server.freeze = false;
+                Server.Freeze = false;
             }
             else if (request.State == ServerState.Crash){
-                server.crash = true;
+                Server.Crash = true;
             }
             return new ChangeServerStateReply { Ok = true };
         }
@@ -86,9 +86,9 @@ namespace MainServer
         public Dictionary<string, string> getServerList()
         {
             Dictionary<string, string> ServerList = new Dictionary<string, string>();
-            for (int i = 0; i < serverMappings.Count; i++)
+            for (int i = 0; i < ServerMappings.Count; i++)
             {
-                ServerList[serverMappings[i].ServerId] = serverMappings[i].Url;
+                ServerList[ServerMappings[i].ServerId] = ServerMappings[i].Url;
             }
             return ServerList;
         }
@@ -96,9 +96,9 @@ namespace MainServer
         public Dictionary<string, List<string>> getDataCenter()
         {
             Dictionary<string, List<string>> DataCenter = new Dictionary<string, List<string>>();
-            for (int i = 0; i < partitionMappings.Count; i++)
+            for (int i = 0; i < PartitionMappings.Count; i++)
             {
-                DataCenter[partitionMappings[i].PartitionId] = partitionMappings[i].ServerId.ToList();
+                DataCenter[PartitionMappings[i].PartitionId] = PartitionMappings[i].ServerId.ToList();
             }
             return DataCenter;
         }
@@ -106,9 +106,9 @@ namespace MainServer
         public Dictionary<string, string> getClientList()
         {
             Dictionary<string, string> ClientList = new Dictionary<string, string>();
-            for (int i = 0; i < clientMappings.Count; i++)
+            for (int i = 0; i < ClientMappings.Count; i++)
             {
-                ClientList[clientMappings[i].Username] = clientMappings[i].Url;
+                ClientList[ClientMappings[i].Username] = ClientMappings[i].Url;
             }
             return ClientList;
         }

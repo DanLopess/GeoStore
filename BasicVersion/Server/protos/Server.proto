@@ -9,6 +9,20 @@ service ServerService {
 	rpc Wait (WaitRequest) returns (WaitResponse);
 	rpc BeginRepeat (BeginRepeatRequest) returns (BeginRepeatResponse);
 	rpc EndRepeat (EndRepeatRequest) returns (EndRepeatResponse);
+	rpc LockObject (LockObjectRequest) returns (LockObjectResponse);
+}
+
+message LockObjectRequest {
+	ObjectLock lock = 1;
+}
+
+message LockObjectResponse {
+	bool ok = 1;
+}
+
+message ObjectLock {
+	UniqueKey uniqueKey = 1;
+	string master = 2;
 }
 
 message UniqueKey{
