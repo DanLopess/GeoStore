@@ -211,10 +211,7 @@ namespace Clients
                         ServerId = server_id
                     });
                     Console.WriteLine("Response from the new server:");
-                } else
-                {
-                    // TODO THIS
-                }
+                }   
                 if (beginRepeat != -1)
                 {
                     response.Value = CheckReplace(response.Value, beginRepeat);
@@ -223,7 +220,7 @@ namespace Clients
                 Console.WriteLine(response);
             } catch
             {
-                Console.WriteLine($"Server {currentServer} is not available");
+                Console.WriteLine($"Server {this.currentServer} is not available");
             }
         }
 
@@ -296,54 +293,69 @@ namespace Clients
             }
             catch
             {
-                Console.WriteLine($"Server {currentServer} is not available");
+                Console.WriteLine($"Server {this.currentServer} is not available");
                 //lista de servidores ligados e escolher um de lá,ao receber mappings,limpar a lista
             }
          }
         public void ListServer(string server_id, int beginRepeat)
         {
-
-            ListServerResponse response = client.ListServer(new ListServerRequest
+            try
             {
-                ServerId = server_id
-            });
+                ListServerResponse response = client.ListServer(new ListServerRequest
+                {
+                    ServerId = server_id
+                });
+                foreach (ListServerObj server in response.ListServerObj)
+                {
+                    string output = $" partitionId {server.Object.UniqueKey.PartitionId} " +
+                                    $"objectId {server.Object.UniqueKey.ObjectId} " +
+                                    $"value {server.Object.Value}";
+                    if (server.IsMaster)
+                    {
+                        output += $" Master replica for this object";
+                    }
 
-            foreach (ListServerObj server in response.ListServerObj)
+                    if (beginRepeat != -1)
+                    {
+                        output = CheckReplace(output, beginRepeat);
+
+                    }
+                    Console.WriteLine(output);
+                }
+            }
+            catch
             {
-                string output = $" partitionId {server.Object.UniqueKey.PartitionId} " +
-                                $"objectId {server.Object.UniqueKey.ObjectId} " +
-                                $"value {server.Object.Value}";
-                if (server.IsMaster)
-                {
-                    output += $" Master replica for this object";
-                }
-
-                if (beginRepeat != -1)
-                {
-                    output = CheckReplace(output, beginRepeat);
-
-                }
-                Console.WriteLine(output);
+                Console.WriteLine($"Server {this.currentServer} is not available");
             }
         }
         public void ListGlobal(int beginRepeat)
         {
-
-            ListGlobalResponse response = client.ListGlobal(new ListGlobalRequest { });
-            foreach (UniqueKey server in response.UniqueKeyList)
-            {
-
-                string output = $" partitionId {server.PartitionId} " +
-                                $"objectId {server.ObjectId} ";
-
-                if (beginRepeat != -1)
+            try {
+                ListGlobalResponse response = client.ListGlobal(new ListGlobalRequest { });
+                foreach (GlobalStructure globalStructure  in response.GlobalList)
                 {
-                    if (output.Contains("$i"))
+
+                    string output = $" server {globalStructure.ServerId} \n";
+                    foreach (UniqueKey uniqueKey in globalStructure.UniqueKeyList) 
                     {
-                        output = CheckReplace(output, beginRepeat);
+                        output+= $" partitionId {uniqueKey.PartitionId} " +
+                        $"objectId {uniqueKey.ObjectId} ";
+                        
                     }
+
+                    if (beginRepeat != -1)
+                    {
+                        if (output.Contains("$i"))
+                        {
+                            output = CheckReplace(output, beginRepeat);
+                        }
+                    }
+                    Console.WriteLine(output);
                 }
-                Console.WriteLine(output);
+            }
+            catch
+            {
+                Console.WriteLine($"Server {this.currentServer} is not available");
             }
         }
         public void Wait(int x)

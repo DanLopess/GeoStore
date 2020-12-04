@@ -95,17 +95,23 @@ namespace MainServer
                         OtherServer.RemoveAt(0);
 
                         if (OtherServer.Count != 0){
-                            lock(ServerList){
-                                foreach (var item in OtherServer){
-                                    try{
+                            lock(ServerList)
+                            {
+                                foreach (var item in OtherServer)
+                                {
+                                    try
+                                    {
                                         string url = ServerList[item];
                                         channel = GrpcChannel.ForAddress(url);
                                         ServerService.ServerServiceClient server =
                                             new ServerService.ServerServiceClient(channel);
                                         server.WriteAsync(request);
-                                    } catch {
+                                    }
+                                    catch
+                                    {
                                         Console.WriteLine($"Server {MyId} is not available");
                                     }
+                                }
                             }
                         }
                     }
@@ -169,14 +175,14 @@ namespace MainServer
             SetDelay();
             var listEachGlobalResponse = new ListEachGlobalResponse();
             lock(StorageSystem){
-                //GlobalStructure gStruct = new GlobalStructure();
+                GlobalStructure gStruct = new GlobalStructure();
                 foreach (var item in StorageSystem){
                     UniqueKey uKey = item.Key;
-                    //Trocar
-                    //gStruct.UniqueKeyList.Add(uKey);
-                    listEachGlobalResponse.UniqueKeyList.Add(uKey);
+                    
+                   gStruct.UniqueKeyList.Add(uKey);
+                    
                 }
-                //listEachGlobalResponse.globalList.Add(gStruct);
+                listEachGlobalResponse.GlobalList.Add(gStruct);
             }
             return listEachGlobalResponse;
         }
@@ -194,14 +200,13 @@ namespace MainServer
             tmpListServer.Remove(MyId);
 
             lock(StorageSystem){
-                //GlobalStructure gStruct = new GlobalStructure();
+                GlobalStructure gStruct = new GlobalStructure();
                 foreach (var item in StorageSystem){
                     UniqueKey uKey = item.Key;
-                    //Trocar
-                    //gStruct.UniqueKeyList.Add(uKey);
-                    listGlobalResponse.UniqueKeyList.Add(uKey);
-                }
-                //listGlobalResponse.globalList.Add(gStruct);
+                   gStruct.UniqueKeyList.Add(uKey);
+                 }
+                gStruct.ServerId = MyId;
+               listGlobalResponse.GlobalList.Add(gStruct);
             }
 
             foreach (var item in tmpListServer) {
@@ -211,11 +216,11 @@ namespace MainServer
                     ServerService.ServerServiceClient server = new ServerService.ServerServiceClient(channel);
                     ListEachGlobalRequest lsRequest = new ListEachGlobalRequest{ ServerId = item.Key};
                     listEachGlobalResponse = server.ListEachGlobal(lsRequest);
-                    foreach(var tmp in listEachGlobalResponse.UniqueKeyList){
-                        listGlobalResponse.UniqueKeyList.Add(tmp);
+                    foreach(var tmp in listEachGlobalResponse.GlobalList){
+                        listGlobalResponse.GlobalList.Add(tmp);
                     }
                 } catch {
-                    Console.WriteLine($"Server {lsRequest.ServerId} is not available"); 
+                    Console.WriteLine($"Server {item.Key} is not available"); 
                 }
             }
 

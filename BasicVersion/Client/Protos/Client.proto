@@ -52,7 +52,10 @@ message ReadRequest{
 message ReadResponse{
 	string value = 1;
 }
-
+message GlobalStructure{
+	repeated UniqueKey uniqueKeyList = 1;
+	string server_id = 2;
+}
 message ListServerObj{
 	Object object = 1;
 	bool isMaster = 2;
@@ -66,19 +69,12 @@ message ListServerResponse{
 	repeated ListServerObj listServerObj = 1;	
 }
 
-message ListEachGlobalRequest{
-	string server_id = 1;
-}
-message ListEachGlobalResponse{
-	repeated UniqueKey uniqueKeyList = 1;
-}
-
 message ListGlobalRequest{
 
 }
 
 message ListGlobalResponse{
-	repeated UniqueKey uniqueKeyList = 1;
+	repeated GlobalStructure globalList = 1;
 }
 
 message WaitRequest{

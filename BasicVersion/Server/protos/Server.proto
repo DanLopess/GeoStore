@@ -60,18 +60,14 @@ message ListEachGlobalRequest{
 	string server_id = 1;
 }
 message ListEachGlobalResponse{
-	//Trocar
-	//repeated GlobalStructure globalList = 1;
-	repeated UniqueKey uniqueKeyList = 1;
+	repeated GlobalStructure globalList = 1;
 }
 
 message ListGlobalRequest{
 
 }
 message ListGlobalResponse{
-	//Trocar
-	//repeated GlobalStructure globalList = 1;
-	repeated UniqueKey uniqueKeyList = 1;
+	repeated GlobalStructure globalList = 1;
 }
 
 message WaitRequest{

@@ -1,9 +1,3 @@
 write p1 1 "Value-$i"
-write p1 2 "Values-$i"
-listServer s1
-begin-repeat 3
-read p1 1 s1
-read p1 2 s1
-end-repeat
-wait 3000
-write p1 3 "Values-$i"
+write part2 2 "Values-$i"
+listGlobal
