@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Server": {
+      "commandName": "Executable",
+      "executablePath": "C:\\Users\\Daniel Lopes\\Documents\\GitHub\\IST-DIDA_GSTORE\\BasicVersion\\Server\\bin\\Debug\\netcoreapp3.1\\Server.exe"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+write Part2 11 "the object's value"
+read Part1 MyObject -1
+read Part2 1 3
+listServer server-1
+wait 3000
+begin-repeat 5
+write Part1 obj-$i "value-$i"
+wait 1000
+end-repeat
+listGlobal

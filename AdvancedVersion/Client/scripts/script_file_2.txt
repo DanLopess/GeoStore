@@ -1,0 +1,5 @@
+write Part1 2 "Value-$i"
+write Part1 3 "Values-$i"
+listGlobal
+wait 10
+write Part2 2 "Values-$i"

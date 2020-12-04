@@ -1,0 +1,3 @@
+write p1 1 "Value-$i"
+write part2 2 "Values-$i"
+listGlobal
