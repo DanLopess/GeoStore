@@ -15,7 +15,6 @@ namespace MainServer
     public class PuppetServer : PuppetService.PuppetServiceBase
     {
         private List<ServerMapping> ServerMappings;
-        private List<ClientMapping> ClientMappings;
         private List<PartitionMapping> PartitionMappings;
         private MainServerService Server;
 
@@ -101,16 +100,6 @@ namespace MainServer
                 DataCenter[PartitionMappings[i].PartitionId] = PartitionMappings[i].ServerId.ToList();
             }
             return DataCenter;
-        }
-
-        public Dictionary<string, string> getClientList()
-        {
-            Dictionary<string, string> ClientList = new Dictionary<string, string>();
-            for (int i = 0; i < ClientMappings.Count; i++)
-            {
-                ClientList[ClientMappings[i].Username] = ClientMappings[i].Url;
-            }
-            return ClientList;
         }
     }
 }

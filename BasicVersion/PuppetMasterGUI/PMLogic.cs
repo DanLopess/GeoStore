@@ -270,12 +270,14 @@ namespace PuppetMasterGUI
         /// <param name="command"></param>
         public void SendStatusCommand()
         {
+            lock(ServerMapsLock)
             foreach (KeyValuePair<string, string> entry in ServerMapping)
             {
                 SendStatusRequest(entry.Value);
             }
 
-            foreach (KeyValuePair<string, string> entry in ClientMapping)
+            lock (ClientMapsLock)
+                foreach (KeyValuePair<string, string> entry in ClientMapping)
             {
                 SendStatusRequest(entry.Value);
             }

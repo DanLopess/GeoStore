@@ -69,6 +69,8 @@ namespace MainServer
             // Stays blocked until object gets unlocked
             WaitForStatement(IsObjectLocked(request.UniqueKey));
 
+            Console.WriteLine($"Received a Read command from a client. (Object Id: {request.UniqueKey.ObjectId})");
+
             SetDelay();
             lock (StorageSystem){
                 if (StorageSystem.ContainsKey(request.UniqueKey)) {
@@ -85,50 +87,67 @@ namespace MainServer
             }
         }
 
+        public override Task<WriteResponse> WriteToReplica(WriteRequest request, ServerCallContext context)
+        {
+            return Task.FromResult(WriteObjectToReplica(request, context));
+        }
+
         public override Task<WriteResponse> Write(WriteRequest request, ServerCallContext context)
         {
-            return Task.FromResult(WriteObject(request, context));
+            return Task.FromResult(WriteObjectFromClient(request, context));
         }
-        public WriteResponse WriteObject(WriteRequest request, ServerCallContext context) {
+        public WriteResponse WriteObjectFromClient(WriteRequest request, ServerCallContext context) {
             WaitForStatement(Freeze);
             SetDelay();
             Object obj = request.Object;
             UniqueKey uKey = obj.UniqueKey;
-            string value = obj.Value;
-            string url = context.Host;
 
-            Console.WriteLine($"WRITE REQUEST FROM: {url}");
+            Console.WriteLine($"Received a Write command from a client. (Object Id: {obj.UniqueKey.ObjectId})");
 
-            // If the object was blocked and the write request was made by the master
-            if (IsObjectLocked(uKey) && GetLockMasterServerUrl(uKey).Equals(url))
-            {
-                // 1st Write to storage System
+            try {
+                LockOwnObject(uKey);
+                SendLockObjectToAllServersOfPartition(uKey);
                 AddObjectToStorageSystem(obj);
-
-                // 2nd Unlocks the object
-                UnlockObject(uKey);
-
-            } else
-            {
-                // Stays blocked until object gets unlocked
-                WaitForStatement(IsObjectLocked(uKey));
-
-                AddObjectToStorageSystem(obj);
-
-                try {
-                    SendLockObjectToAllServersOfPartition(uKey);
-                    SendWriteToAllServersOfPartition(obj);
-                } catch {
-                    return new WriteResponse {
-                        Ok = false
-                    };
-                }
+                SendWriteToAllServersOfPartition(obj);
+            } catch {
+                return new WriteResponse {
+                    Ok = false
+                };
             }
             return new WriteResponse
             {
                 Ok = true
             };
 
+        }
+
+        public WriteResponse WriteObjectToReplica(WriteRequest request, ServerCallContext context)
+        {
+            WaitForStatement(Freeze);
+            SetDelay();
+            Object obj = request.Object;
+            UniqueKey uKey = obj.UniqueKey;
+
+            if (IsObjectLocked(uKey))
+            {
+                Console.WriteLine($"Received a Write command from a Master Server. (Object Id: {obj.UniqueKey.ObjectId})");
+
+                // 1st Write to storage System
+                AddObjectToStorageSystem(obj);
+
+                // 2nd Unlocks the object
+                UnlockObject(uKey);
+
+                return new WriteResponse
+                {
+                    Ok = true
+                };
+            }
+
+            return new WriteResponse
+            {
+                Ok = false
+            };
         }
 
         public override Task<ListServerResponse> ListServer(ListServerRequest request, ServerCallContext context)
@@ -267,23 +286,15 @@ namespace MainServer
             }
         }
 
-        private string GetLockMasterServerUrl(UniqueKey key)
+        private void LockOwnObject(UniqueKey key)
         {
-            string serverId = "";
-            string serverUrl = "";
             lock (StorageSystemLock)
             {
-                foreach (ObjectLock oLock in StorageSystemLock)
+                ObjectLock oLock = new ObjectLock
                 {
-                    if (oLock.UniqueKey.ObjectId.Equals(key.ObjectId) &&
-                        oLock.UniqueKey.PartitionId.Equals(key.PartitionId))
-                    {
-                        serverId = oLock.Master;
-                        serverUrl = GetServerUrl(serverId);
-                        break;
-                    }
-                }
-                return serverUrl;
+                    UniqueKey = key,
+                    Master = ServerId
+                };
             }
         }
 
@@ -318,7 +329,8 @@ namespace MainServer
             {
                 string partitionId = uKey.PartitionId;
                 List<string> servers = new List<string>(DataCenter[partitionId]); // Make a copy so that we dont remove from the DataCenter
-                servers.Remove(ServerId);
+                int index = servers.IndexOf(ServerId);
+                servers.RemoveAt(index);
 
                 foreach (string serverId in servers)
                 {
@@ -357,7 +369,8 @@ namespace MainServer
             {
                 string partitionId = obj.UniqueKey.PartitionId;
                 List<string> servers = new List<string>(DataCenter[partitionId]); // Make a copy so that we dont remove from the DataCenter
-                servers.Remove(ServerId);
+                int index = servers.IndexOf(ServerId);
+                servers.RemoveAt(index);
 
                 foreach (string serverId in servers)
                 {
@@ -367,7 +380,7 @@ namespace MainServer
                         channel = GrpcChannel.ForAddress(url);
                         ServerService.ServerServiceClient server = new ServerService.ServerServiceClient(channel);
 
-                        WriteResponse response = server.Write(new WriteRequest
+                        WriteResponse response = server.WriteToReplica(new WriteRequest
                         {
                             Object = obj
                         });

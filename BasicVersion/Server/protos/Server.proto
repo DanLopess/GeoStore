@@ -2,6 +2,7 @@
 
 service ServerService {
 	rpc Write (WriteRequest) returns (WriteResponse);
+	rpc WriteToReplica (WriteRequest) returns (WriteResponse);
 	rpc Read (ReadRequest) returns (ReadResponse);
 	rpc ListServer (ListServerRequest) returns (ListServerResponse);
 	rpc ListEachGlobal (ListEachGlobalRequest) returns (ListEachGlobalResponse);

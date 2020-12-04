@@ -6,10 +6,11 @@ using System.Threading;
 using Grpc.Core;
 using Grpc.Net.Client;
 using System.Threading.Tasks;
-using System.Linq;
+
 
 namespace Clients
 {
+
     public class Client
     {
         private ServerService.ServerServiceClient client;
@@ -82,14 +83,6 @@ namespace Clients
             return id;
         }
 
-        public void SetCurrentServer(string server)
-        {
-            lock (CurrentServerLock)
-            {
-                this.currentServer = server;
-            }
-
-        }
 
         public void ConnectToServer()
         {
@@ -104,35 +97,11 @@ namespace Clients
 
         }
 
-
-        public string getServerPartition(string server)
+        public void SetCurrentServer(string server)
         {
-            string partition = "";
-            if (!currentServer.Equals(""))
+            lock (CurrentServerLock)
             {
-                foreach (string key in DataCenter.Keys)
-                {
-                    if (DataCenter[key][0].Equals(server)) ;
-                    partition = key;
-                    return partition;
-                }
-            }
-            return partition;
-        }
-
-        //change to a new server after a server crash to avoid errors until the reception of updated mappings
-        public string ChangeServer()
-        {
-            string partition = getServerPartition(this.currentServer);
-            if (DataCenter[partition].Count != 1)
-            {
-                SetCurrentServer(DataCenter[partition][1]);
-                return DataCenter[partition][1];
-            }
-            else
-            {
-                Console.WriteLine("Partition has no available servers");
-                return "None";
+                this.currentServer = server;
             }
         }
 
@@ -185,39 +154,17 @@ namespace Clients
                 for (int i = 0; i < lines.Length; i++)
                 {
                     line = lines[i].Split(' ');
-                    if (line[0].Contains("Wait"))
+                    if (line[0] == "begin-repeat")
                     {
-                        Wait(int.Parse(line[1]));
+                        count = BeginRepeat(i, int.Parse(line[1]));
+                        i = i + count;
+                        Console.WriteLine("end-repeat");
                     }
                     else
                     {
-                        if (line[0] == "begin-repeat")
-                        {
-                            count = BeginRepeat(i, int.Parse(line[1]));
-                            i = i + count;
-                            Console.WriteLine("end-repeat");
-                        }
-                        else
-                        {
-
-                            SwitchCase(line, -1);
-                            /*
-                            
-                            Task task = Task.Run(() => SwitchCase(line, -1));
-                            tasks.Add(task);
-                            */
-                        }
-
+                        SwitchCase(line, -1);
                     }
-                }
-
-                //Task.WaitAll(tasks.ToArray());
-
-                // Rethrow last exception thrown in Tasks
-                if (_Exception != null)
-                {
-                    //throw _Exception;
-                    Console.WriteLine("Exception was thrown!!!");
+                                        
                 }
             }
 
@@ -226,7 +173,7 @@ namespace Clients
         public void SwitchCase(string[] line, int beginRepeat)
         {
 
-            switch (line[0])
+            switch (line[0].ToLower())
             {
                 case "read":
                     Read(line[1], line[2], line[3], beginRepeat);
@@ -234,11 +181,14 @@ namespace Clients
                 case "write":
                     CheckMaster(line[1], line[2], line[3], beginRepeat);
                     break;
-                case "listServer":
+                case "listserver":
                     ListServer(line[1], beginRepeat);
                     break;
-                case "listGlobal":
+                case "listglobal":
                     ListGlobal(beginRepeat);
+                    break;
+                case "wait":
+                    Wait(int.Parse(line[1]));
                     break;
                 default:
                     Console.WriteLine("Invalid Command");
@@ -258,18 +208,9 @@ namespace Clients
         {
             if (PartitionAvailable(partitionId))
             {
-
                 UniqueKey uniqueKey = new UniqueKey();
                 uniqueKey.PartitionId = partitionId;
-                if (beginRepeat != -1)
-                {
-                    uniqueKey.ObjectId = CheckReplace(objectId, beginRepeat);
-                }
-                else
-                {
-                    uniqueKey.ObjectId = objectId;
-                }
-
+                uniqueKey.ObjectId = objectId;
 
                 try
                 {
@@ -304,11 +245,6 @@ namespace Clients
                 catch
                 {
                     Console.WriteLine($"Server {this.currentServer} is not available");
-                    server_id = ChangeServer();
-                    if (!server_id.Equals("None"))
-                    {
-                        Read(partitionId, objectId, server_id, beginRepeat);
-                    }
                 }
             }
             return;
@@ -317,22 +253,23 @@ namespace Clients
 
         public void CheckMaster(string partitionId, string objectId, string value, int beginRepeat)
         {
-
             string server_id = GetServerId();
 
             lock (DataCenterLock)
             {
                 if (PartitionAvailable(partitionId))
                 {
-
+                    Console.WriteLine(DataCenter[partitionId][0]);
+                    Console.WriteLine(server_id);
                     if (!DataCenter[partitionId][0].Equals(server_id))
                     {
-
                         server_id = DataCenter[partitionId][0];
                         SetCurrentServer(ServerList[server_id]);
                         Console.WriteLine("Changing to the Master server for this partition ...");
-                        ConnectToServer();
                     }
+                    Console.WriteLine(currentServer);
+                    ConnectToServer();
+                    Console.WriteLine(currentServer);
                     Write(partitionId, objectId, value, beginRepeat);
                 }
                 else
@@ -344,12 +281,12 @@ namespace Clients
         }
         public void Write(string partitionId, string objectId, string value, int beginRepeat)
         {
+
             if (beginRepeat != -1)
             {
                 partitionId = CheckReplace(partitionId, beginRepeat);
                 objectId = CheckReplace(objectId, beginRepeat);
                 value = CheckReplace(value, beginRepeat);
-
             }
             UniqueKey uniqueKey = new UniqueKey();
             uniqueKey.PartitionId = partitionId;
@@ -378,11 +315,6 @@ namespace Clients
             catch
             {
                 Console.WriteLine($"Server {this.currentServer} is not available");
-                string server_id = ChangeServer();
-                if (!server_id.Equals("None"))
-                {
-                    Write(partitionId, objectId, value, beginRepeat);
-                }
             }
 
         }
@@ -396,6 +328,7 @@ namespace Clients
                     {
                         ServerId = server_id
                     });
+                    Console.WriteLine($"\t-----ListServer {server_id}-----");
                     foreach (ListServerObj server in response.ListServerObj)
                     {
                         string output = $" partitionId {server.Object.UniqueKey.PartitionId} " +
@@ -413,15 +346,11 @@ namespace Clients
                         }
                         Console.WriteLine(output);
                     }
+                    Console.WriteLine($"\t---ListServer {server_id} End---");
                 }
                 catch
                 {
                     Console.WriteLine($"Server {this.currentServer} is not available");
-                    server_id = ChangeServer();
-                    if (!server_id.Equals("None"))
-                    {
-                        ListServer(server_id, beginRepeat);
-                    }
                 }
             }
             else
@@ -434,7 +363,7 @@ namespace Clients
             try
             {
                 ListGlobalResponse response = client.ListGlobal(new ListGlobalRequest { });
-                Console.WriteLine("----ListGlobal----");
+                Console.WriteLine("\t----ListGlobal----");
                 foreach (GlobalStructure globalStructure in response.GlobalList)
                 {
                     string output = $"server {globalStructure.ServerId} with objects:\n";
@@ -456,16 +385,11 @@ namespace Clients
                     Console.WriteLine(output);
                     output = "";
                 }
-                Console.WriteLine("--ListGlobalEnd--");
+                Console.WriteLine("\t--ListGlobalEnd--");
             }
             catch
             {
                 Console.WriteLine($"Server {this.currentServer} is not available");
-                string server_id = ChangeServer();
-                if (!server_id.Equals("None"))
-                {
-                    ListGlobal(beginRepeat);
-                }
             }
         }
         public void Wait(int x)
