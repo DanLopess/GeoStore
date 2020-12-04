@@ -108,16 +108,18 @@ namespace PCS
         {
             string startupMessage;
             ServerPort serverPort;
-
+            /*
             Console.Write("Enter server executable path: ");
-            string serverPath = Console.ReadLine();
+            //string serverPath = Console.ReadLine();
             Console.Write("Enter client executable path: ");
             string clientPath = Console.ReadLine();
-
+            */
             serverPort = new ServerPort(hostname, PCSPort, ServerCredentials.Insecure);
             startupMessage = "Insecure server listening on port " + PCSPort;
 
             PCSServerLogic logic = new PCSServerLogic();
+            string clientPath = "..\\..\\..\\..\\Client\\bin\\Debug\\netcoreapp3.1\\Client.exe";
+            string serverPath = "..\\..\\..\\..\\Server\\bin\\Debug\\netcoreapp3.1\\Server.exe";
             logic.SetClientFilename(clientPath);
             logic.SetServerFilename(serverPath);
 

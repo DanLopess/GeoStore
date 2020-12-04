@@ -183,6 +183,7 @@ namespace MainServer
                     
                 }
                 listEachGlobalResponse.GlobalList.Add(gStruct);
+                listEachGlobalResponse.ServerId=MyId;
             }
             return listEachGlobalResponse;
         }
@@ -206,7 +207,7 @@ namespace MainServer
                    gStruct.UniqueKeyList.Add(uKey);
                  }
                 gStruct.ServerId = MyId;
-               listGlobalResponse.GlobalList.Add(gStruct);
+                listGlobalResponse.GlobalList.Add(gStruct);
             }
 
             foreach (var item in tmpListServer) {
@@ -219,6 +220,7 @@ namespace MainServer
                     foreach(var tmp in listEachGlobalResponse.GlobalList){
                         listGlobalResponse.GlobalList.Add(tmp);
                     }
+                    
                 } catch {
                     Console.WriteLine($"Server {item.Key} is not available"); 
                 }

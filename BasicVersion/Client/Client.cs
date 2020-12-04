@@ -350,7 +350,9 @@ namespace Clients
                             output = CheckReplace(output, beginRepeat);
                         }
                     }
+                    
                     Console.WriteLine(output);
+                    output = "";
                 }
             }
             catch

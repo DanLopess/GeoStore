@@ -61,6 +61,7 @@ message ListEachGlobalRequest{
 }
 message ListEachGlobalResponse{
 	repeated GlobalStructure globalList = 1;
+	string server_id=2;
 }
 
 message ListGlobalRequest{
@@ -68,6 +69,7 @@ message ListGlobalRequest{
 }
 message ListGlobalResponse{
 	repeated GlobalStructure globalList = 1;
+	
 }
 
 message WaitRequest{
