@@ -37,7 +37,7 @@ namespace Clients
 
             this.hasReceivedMappings = true;
             return new SendMappingsReply { Ok = true };
-            //TODO-when receiving new mappings,clear current server
+            client.SetCurrentServer("");
         }
 
         public override Task<GetNodeStatusReply> GetStatus(GetNodeStatusRequest request, ServerCallContext context)
