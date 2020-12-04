@@ -367,7 +367,7 @@ namespace Clients
                     {
                         ServerId = server_id
                     });
-                    Console.WriteLine($"\t-----ListServer {server_id}-----");
+                    Console.WriteLine($"--------ListServer {server_id}--------");
                     foreach (ListServerObj server in response.ListServerObj)
                     {
                         string output = $" partitionId {server.Object.UniqueKey.PartitionId} " +
@@ -385,7 +385,7 @@ namespace Clients
                         }
                         Console.WriteLine(output);
                     }
-                    Console.WriteLine($"\t---ListServer {server_id} End---");
+                    Console.WriteLine($"-------ListServer {server_id} End-------");
                 }
                 catch
                 {
@@ -407,7 +407,7 @@ namespace Clients
             try
             {
                 ListGlobalResponse response = client.ListGlobal(new ListGlobalRequest { });
-                Console.WriteLine("\t----ListGlobal----");
+                Console.WriteLine("----------ListGlobal----------");
                 foreach (GlobalStructure globalStructure in response.GlobalList)
                 {
                     string output = $"server {globalStructure.ServerId} with objects:\n";
@@ -429,7 +429,7 @@ namespace Clients
                     Console.WriteLine(output);
                     output = "";
                 }
-                Console.WriteLine("\t--ListGlobalEnd--");
+                Console.WriteLine("---------ListGlobalEnd---------");
             }
             catch
             {
