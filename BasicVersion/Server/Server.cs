@@ -31,6 +31,8 @@ namespace MainServer
         // Storage System Lock
         private List<ObjectLock> StorageSystemLock = new List<ObjectLock>();
 
+        private readonly object SSLock = new object();
+
         // MyId stores the server id
         private readonly string ServerId;
         private readonly int MinDelay;
@@ -72,7 +74,8 @@ namespace MainServer
             Console.WriteLine($"Received a Read command from a client. (Object Id: {request.UniqueKey.ObjectId})");
 
             SetDelay();
-            lock (StorageSystem){
+            lock (SSLock)
+            {
                 if (StorageSystem.ContainsKey(request.UniqueKey)) {
                     return new ReadResponse
                     {
@@ -102,18 +105,17 @@ namespace MainServer
             Object obj = request.Object;
             UniqueKey uKey = obj.UniqueKey;
 
-            Console.WriteLine($"Received a Write command from a client. (Object Id: {obj.UniqueKey.ObjectId})");
+            Console.WriteLine($"Received a Write command from a client. (Object Id: {obj.UniqueKey.ObjectId} Value: {obj.Value})");
 
-            try {
-                LockOwnObject(uKey);
-                SendLockObjectToAllServersOfPartition(uKey);
-                AddObjectToStorageSystem(obj);
-                SendWriteToAllServersOfPartition(obj);
-            } catch {
-                return new WriteResponse {
-                    Ok = false
-                };
-            }
+
+            LockOwnObject(uKey);
+            SendLockObjectToAllServersOfPartition(uKey);
+            SendWriteToAllServersOfPartition(obj);
+            AddObjectToStorageSystem(obj);
+            UnlockObject(uKey);
+
+            Console.WriteLine($"FINAL WRITE DONE (Object Id: {obj.UniqueKey.ObjectId})");
+
             return new WriteResponse
             {
                 Ok = true
@@ -134,6 +136,8 @@ namespace MainServer
 
                 // 1st Write to storage System
                 AddObjectToStorageSystem(obj);
+
+                Console.WriteLine($"WROTE (Object Id: {obj.UniqueKey.ObjectId})");
 
                 // 2nd Unlocks the object
                 UnlockObject(uKey);
@@ -394,10 +398,9 @@ namespace MainServer
                             Console.WriteLine($"Failed to write Object  {obj.UniqueKey.ObjectId} on server {serverId}");
                         }
                     }
-                    catch
+                    catch (Exception e)
                     {
                         Console.WriteLine($"Failed to communicate with server {serverId}");
-                        throw new FailedToSendRequestException($"Failed to communicate with server {serverId}");
                     }
                 }
             }
@@ -436,11 +439,15 @@ namespace MainServer
 
         private void AddObjectToStorageSystem(Object obj)
         {
-            lock (StorageSystem) StorageSystem.Add(obj.UniqueKey, obj.Value);
+            lock (SSLock) StorageSystem.TryAdd(obj.UniqueKey, obj.Value);
+            
+            foreach (KeyValuePair<UniqueKey, string> item in StorageSystem)
+            {
+                Console.WriteLine($"Key: {item.Key} Value: {item.Value}");
+            }
         }
         class Program
         {
-            
             public static void Main(string[] args)
             {
                 if(args.Length == 4)
