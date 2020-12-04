@@ -311,6 +311,7 @@ namespace PuppetMasterGUI
                     {
                         // If the node crashed, we definitely want to remove it from the mappings
                         DeleteServerFromMappings(serverId, url);
+                        _Exception = new NodeException("Failed to connect to node.\nCause: " + e.Message);
                     }
                 }
             }
@@ -349,6 +350,7 @@ namespace PuppetMasterGUI
                     {
                         // If the node crashed, we definitely want to remove it from the mappings
                         DeleteServerFromMappings(serverId, url);
+                        _Exception = new NodeException("Failed to connect to node.\nCause: " + e.Message);
                     }
                 }
             }
@@ -386,6 +388,7 @@ namespace PuppetMasterGUI
                     {
                         // If the node crashed, we definitely want to remove it from the mappings
                         DeleteServerFromMappings(serverId, url);
+                        _Exception = new NodeException("Failed to connect to node.\nCause: " + e.Message);
                     }
                 }
             }
@@ -468,7 +471,7 @@ namespace PuppetMasterGUI
             }
             catch (Exception e)
             {
-                // TODO node is down, do something about it 
+                _Exception = new NodeException("Failed to connect to node.\nCause: " + e.Message);
             }
         }
 
@@ -484,11 +487,10 @@ namespace PuppetMasterGUI
                 {
                     lock (ExceptLock)
                         _Exception = new SendMappingsException("Reply was NOT OK. Node: " + url);
-                    // TODO decide what to do when a node fails to get the mappings
                 }
             } catch (Exception e)
             {
-                // TODO node is down do something about 
+                _Exception = new NodeException("Failed to connect to node.\nCause: " + e.Message);
             }
             
         }
