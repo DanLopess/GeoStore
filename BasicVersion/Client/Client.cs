@@ -125,8 +125,11 @@ namespace Clients
             {
                 return true;
             }
-            Console.WriteLine($"Partition {partitionId} is not available");
-            return false;
+            else
+            {
+                Console.WriteLine("N/A");
+                return false;
+            }
         }
 
 
@@ -159,9 +162,16 @@ namespace Clients
                     {
                         if (line[0] == "begin-repeat")
                         {
-                            count = BeginRepeat(i, int.Parse(line[1]));
-                            i = i + count;
-                            Console.WriteLine("end-repeat");
+                            if (line.Length == 2)
+                            {
+                                count = BeginRepeat(i, int.Parse(line[1]));
+                                i = i + count;
+                                Console.WriteLine("end-repeat");
+                            }
+                            else
+                            {
+
+                            }
                         }
                         else
                         {
@@ -206,6 +216,9 @@ namespace Clients
                 case "listGlobal":
                     ListGlobal(beginRepeat);
                     break;
+                default:
+                    Console.WriteLine("Invalid Command");
+                    break;
             }
         }
 
@@ -225,6 +238,14 @@ namespace Clients
                 UniqueKey uniqueKey = new UniqueKey();
                 uniqueKey.PartitionId = partitionId;
                 uniqueKey.ObjectId = objectId;
+                if (beginRepeat != -1)
+                {
+                    uniqueKey.ObjectId = CheckReplace(objectId, beginRepeat);
+                }
+                else
+                {
+                    uniqueKey.ObjectId = objectId;
+                }
 
                 try
                 {

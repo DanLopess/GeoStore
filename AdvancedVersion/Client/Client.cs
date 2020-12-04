@@ -6,7 +6,7 @@ using System.Threading;
 using Grpc.Core;
 using Grpc.Net.Client;
 using System.Threading.Tasks;
-
+using System.Linq;
 
 namespace Clients
 {
@@ -83,6 +83,14 @@ namespace Clients
             return id;
         }
 
+        public void SetCurrentServer(string server)
+        {
+            lock (CurrentServerLock)
+            {
+                this.currentServer = server;
+            }
+
+        }
 
         public void ConnectToServer()
         {
@@ -97,18 +105,46 @@ namespace Clients
 
         }
 
-        public void SetCurrentServer(string server)
-        {
-            lock (CurrentServerLock)
-            {
-                this.currentServer = server;
-            }
 
+        public string getServerPartition(string server)
+        {
+            string partition = "";
+            if (!currentServer.Equals("")) {
+                foreach (string key in DataCenter.Keys)
+                {
+                    if (DataCenter[key][0].Equals(server));
+                    partition= key;
+                    return partition;
+                }
+            }
+            return partition;
+        }
+
+        //change to a new server after a server crash to avoid errors until the reception of updated mappings
+        public void ChangeServer()
+        {
+            string partition = getServerPartition(this.currentServer);
+            if (DataCenter[partition].Count != 1)
+            {
+                SetCurrentServer(partition);
+            }
+            else
+            {   
+                //remove the partition from the dictionary and connect to a new Master server randomly
+                DataCenter.Remove(partition);
+                Random rnd = new Random();
+                int position = rnd.Next(0,DataCenter.Count-1);
+                string newPartition = DataCenter.ElementAt(position).Key;
+                string serverId = DataCenter[partition][0];
+                string serverUrl = ServerList[serverId];
+                SetCurrentServer(serverUrl);
+                ConnectToServer();
+                Console.WriteLine($"Connecting to {serverUrl}, Master for the partition {newPartition} ...");
+            }
         }
 
         public Boolean ServerAvailable(string server)
         {
-           
            if (ServerList.ContainsKey(server))
            {
                 return true;
@@ -119,7 +155,6 @@ namespace Clients
                 Console.WriteLine($"Server {server} is not available");
                 return false;
             }
-
         }
 
         public Boolean PartitionAvailable(string partitionId)
@@ -128,11 +163,14 @@ namespace Clients
             {
                 return true;
             }
-            Console.WriteLine($"Partition {partitionId} is not available");
-            return false;
+            else
+            {
+                Console.WriteLine("N/A");
+                return false;
+            }
         }
 
-
+        
         public void ParseInputFile()
         {
             String[] line = new String[lines.Length];
@@ -209,6 +247,9 @@ namespace Clients
                 case "listGlobal":
                     ListGlobal(beginRepeat);
                     break;
+                default:
+                    Console.WriteLine("Invalid Command");
+                    break;
             }
         }
 
@@ -227,7 +268,15 @@ namespace Clients
 
                 UniqueKey uniqueKey = new UniqueKey();
                 uniqueKey.PartitionId = partitionId;
-                uniqueKey.ObjectId = objectId;
+                if (beginRepeat != -1)
+                {
+                    uniqueKey.ObjectId = CheckReplace(objectId, beginRepeat);
+                }
+                else
+                {
+                    uniqueKey.ObjectId = objectId;
+                }
+                
 
                 try
                 {
@@ -262,6 +311,7 @@ namespace Clients
                 catch
                 {
                     Console.WriteLine($"Server {this.currentServer} is not available");
+                    ChangeServer();
                 }
             }
             return;
@@ -331,7 +381,7 @@ namespace Clients
             catch
             {
                 Console.WriteLine($"Server {this.currentServer} is not available");
-                //lista de servidores ligados e escolher um de lá,ao receber mappings,limpar a lista
+                ChangeServer();
             }
 
         }
@@ -366,6 +416,7 @@ namespace Clients
                 catch
                 {
                     Console.WriteLine($"Server {this.currentServer} is not available");
+                    ChangeServer();
                 }
             }
             else
@@ -405,6 +456,7 @@ namespace Clients
             catch
             {
                 Console.WriteLine($"Server {this.currentServer} is not available");
+                ChangeServer();
             }
         }
         public void Wait(int x)
