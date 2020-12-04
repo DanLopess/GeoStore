@@ -61,7 +61,6 @@ message ListEachGlobalRequest{
 }
 message ListEachGlobalResponse{
 	repeated GlobalStructure globalList = 1;
-	string server_id=2;
 }
 
 message ListGlobalRequest{

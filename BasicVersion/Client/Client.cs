@@ -62,7 +62,6 @@ namespace Clients
                     string servers = String.Join(", ", entry.Value.ToArray());
                     Console.WriteLine($"Partition {entry.Key} with Servers: {servers}");
                 }
-                Console.WriteLine("\n");
             //}
         }
 
@@ -332,14 +331,14 @@ namespace Clients
         {
             try {
                 ListGlobalResponse response = client.ListGlobal(new ListGlobalRequest { });
+                Console.WriteLine("----ListGlobal----");
                 foreach (GlobalStructure globalStructure  in response.GlobalList)
                 {
-
-                    string output = $" server {globalStructure.ServerId} \n";
+                    string output = $"server {globalStructure.ServerId} with objects:\n";
                     foreach (UniqueKey uniqueKey in globalStructure.UniqueKeyList) 
                     {
-                        output+= $" partitionId {uniqueKey.PartitionId} " +
-                        $"objectId {uniqueKey.ObjectId} ";
+                        output+= $"partitionId {uniqueKey.PartitionId} " +
+                        $"objectId {uniqueKey.ObjectId}\n";
                         
                     }
 
@@ -354,6 +353,7 @@ namespace Clients
                     Console.WriteLine(output);
                     output = "";
                 }
+                Console.WriteLine("--ListGlobalEnd--");
             }
             catch
             {

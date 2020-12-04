@@ -171,7 +171,7 @@ namespace MainServer
             return Task.FromResult(listEachGlobal(request));
         }
         public ListEachGlobalResponse listEachGlobal(ListEachGlobalRequest request){
-            while (freeze) ;
+            while (freeze);
             SetDelay();
             var listEachGlobalResponse = new ListEachGlobalResponse();
             lock(StorageSystem){
@@ -182,8 +182,8 @@ namespace MainServer
                    gStruct.UniqueKeyList.Add(uKey);
                     
                 }
+                gStruct.ServerId = MyId;
                 listEachGlobalResponse.GlobalList.Add(gStruct);
-                listEachGlobalResponse.ServerId=MyId;
             }
             return listEachGlobalResponse;
         }
@@ -193,7 +193,7 @@ namespace MainServer
             return Task.FromResult(listGlobal(request));
         }
         public ListGlobalResponse listGlobal(ListGlobalRequest request){
-            while (freeze) ;
+            while (freeze);
             SetDelay();
             var listGlobalResponse = new ListGlobalResponse();
             var listEachGlobalResponse = new ListEachGlobalResponse();
@@ -205,7 +205,7 @@ namespace MainServer
                 foreach (var item in StorageSystem){
                     UniqueKey uKey = item.Key;
                    gStruct.UniqueKeyList.Add(uKey);
-                 }
+                }
                 gStruct.ServerId = MyId;
                 listGlobalResponse.GlobalList.Add(gStruct);
             }
@@ -220,7 +220,6 @@ namespace MainServer
                     foreach(var tmp in listEachGlobalResponse.GlobalList){
                         listGlobalResponse.GlobalList.Add(tmp);
                     }
-                    
                 } catch {
                     Console.WriteLine($"Server {item.Key} is not available"); 
                 }
