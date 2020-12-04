@@ -6,8 +6,9 @@ using Grpc.Core;
 using System.Threading.Tasks;
 
 namespace Clients
-{ 
-    public class PuppetClient:PuppetService.PuppetServiceBase{
+{
+    public class PuppetClient : PuppetService.PuppetServiceBase
+    {
         private List<ServerMapping> serverMappings;
         private List<ClientMapping> clientMappings;
         private List<PartitionMapping> partitionMappings;
@@ -18,7 +19,7 @@ namespace Clients
             hasReceivedMappings = false;
             this.client = client;
         }
-        
+
         public override Task<SendMappingsReply> SendMappings(SendMappingsRequest request, ServerCallContext context)
         {
             return Task.FromResult(sendMappings(request));
@@ -35,7 +36,7 @@ namespace Clients
             client.SetServerList(getServerList());
 
             this.hasReceivedMappings = true;
-            return new SendMappingsReply { Ok = true} ; 
+            return new SendMappingsReply { Ok = true };
             //TODO-when receiving new mappings,clear current server
         }
 
@@ -51,7 +52,7 @@ namespace Clients
             Console.WriteLine("==============================");
             return new GetNodeStatusReply { Ok = true, Response = "Client running" };
         }
-        public Dictionary<string,string> getServerList()
+        public Dictionary<string, string> getServerList()
         {
             Dictionary<string, string> ServerList = new Dictionary<string, string>();
             for (int i = 0; i < serverMappings.Count; i++)
@@ -64,7 +65,7 @@ namespace Clients
         public Dictionary<string, List<string>> getDataCenter()
         {
             Dictionary<string, List<string>> DataCenter = new Dictionary<string, List<string>>();
-            for (int i = 0; i <partitionMappings.Count; i++)
+            for (int i = 0; i < partitionMappings.Count; i++)
             {
                 DataCenter[partitionMappings[i].PartitionId] = partitionMappings[i].ServerId.ToList();
             }
@@ -80,5 +81,5 @@ namespace Clients
             }
             return ClientList;
         }
-     }
+    }
 }

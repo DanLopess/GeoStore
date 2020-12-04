@@ -50,26 +50,28 @@ namespace Clients
 
         public void PrintMappings()
         {
-           // lock (ClientListLock) {
+            lock (ClientListLock)
+            {
                 foreach (KeyValuePair<string, string> entry in ClientList)
                 {
                     Console.WriteLine($"Client {entry.Key} with URL: {entry.Value}");
-                } 
-            //}// lock (DataCenterLock)
-            //{
+                }
+            }
+            lock (DataCenterLock)
+            {
                 foreach (KeyValuePair<string, List<String>> entry in DataCenter)
                 {
                     string servers = String.Join(", ", entry.Value.ToArray());
                     Console.WriteLine($"Partition {entry.Key} with Servers: {servers}");
                 }
-            //}
+            }
         }
 
         public string GetServerId()
         {
             string id = "";
-           // lock (ServerListLock)
-            //{
+            lock (ServerListLock)
+            {
                 foreach (string key in ServerList.Keys)
                 {
                     if (ServerList[key].Equals(currentServer))
@@ -77,25 +79,72 @@ namespace Clients
                         id = key;
                     }
                 }
-           // }
+            }
             return id;
         }
 
 
         public void ConnectToServer()
         {
-           //lock (ChannelLock)
-           this.channel = GrpcChannel.ForAddress(currentServer);
-           //lock (ClientLock) 
-           this.client = new ServerService.ServerServiceClient(this.channel);
-          
+            lock (ChannelLock)
+            {
+                this.channel = GrpcChannel.ForAddress(currentServer);
+            }
+            lock (ClientLock)
+            {
+                this.client = new ServerService.ServerServiceClient(this.channel);
+            }
+
         }
 
         public void SetCurrentServer(string server)
         {
-            //lock (CurrentServerLock) 
-            this.currentServer = server;
+            lock (CurrentServerLock)
+                this.currentServer = server;
+
         }
+
+        //mode = 1 to check if there is a server with the given server_id available
+        //mode = 2 to check if there is a server with the given URL available
+        public Boolean ServerAvailable(string server, int mode)
+        {
+            if (mode == 1)
+            {
+                if (ServerList.ContainsKey(server))
+                {
+                    return true;
+                }
+                Console.WriteLine($"Server {server} is not available");
+                return false;
+            }
+
+            else if (mode == 2)
+            {
+                if (ServerList.ContainsValue(server))
+                {
+                    return true;
+                }
+                Console.WriteLine($"Server {server} is not available");
+                return false;
+            }
+            else
+            {
+                Console.WriteLine($"Cannot check if the server is running. Returning False ...");
+                return false;
+            }
+
+        }
+
+        public Boolean PartitionAvailable(string partitionId)
+        {
+            if (DataCenter.ContainsKey(partitionId))
+            {
+                return true;
+            }
+            Console.WriteLine($"Partition {partitionId} is not available");
+            return false;
+        }
+
 
         public void ParseInputFile()
         {
@@ -130,7 +179,8 @@ namespace Clients
                             i = i + count;
                             Console.WriteLine("end-repeat");
                         }
-                        else {
+                        else
+                        {
 
                             SwitchCase(line, -1);
                             /*
@@ -139,7 +189,7 @@ namespace Clients
                             tasks.Add(task);
                             */
                         }
-                        
+
                     }
                 }
 
@@ -185,77 +235,78 @@ namespace Clients
         }
         public void Read(string partitionId, string objectId, string server_id, int beginRepeat)
         {
-            UniqueKey uniqueKey = new UniqueKey();
-            uniqueKey.PartitionId = partitionId;
-            uniqueKey.ObjectId = objectId;
-
-            try
+            if (PartitionAvailable(partitionId))
             {
-                ReadResponse response = client.Read(new ReadRequest
+
+                UniqueKey uniqueKey = new UniqueKey();
+                uniqueKey.PartitionId = partitionId;
+                uniqueKey.ObjectId = objectId;
+
+                try
                 {
-                    UniqueKey = uniqueKey,
-                    ServerId = server_id
-                });
-
-                if (response.Value.Equals("N/A") && !server_id.Equals("-1"))
-                {
-                    Console.WriteLine("Current Server doesn't have the object. Changing Server ...");
-
-                    SetCurrentServer(server_id);
-                    ConnectToServer();
-
-                    response = client.Read(new ReadRequest
+                    ReadResponse response = client.Read(new ReadRequest
                     {
                         UniqueKey = uniqueKey,
                         ServerId = server_id
                     });
-                    Console.WriteLine("Response from the new server:");
-                }   
-                if (beginRepeat != -1)
-                {
-                    response.Value = CheckReplace(response.Value, beginRepeat);
 
+                    if (response.Value.Equals("N/A") && !server_id.Equals("-1") && ServerAvailable(server_id, 1))
+                    {
+                        Console.WriteLine("Current Server doesn't have the object. Changing Server ...");
+
+                        SetCurrentServer(server_id);
+                        ConnectToServer();
+
+                        response = client.Read(new ReadRequest
+                        {
+                            UniqueKey = uniqueKey,
+                            ServerId = server_id
+                        });
+                        Console.WriteLine("Response from the new server:");
+                    }
+
+                    if (beginRepeat != -1)
+                    {
+                        response.Value = CheckReplace(response.Value, beginRepeat);
+
+                    }
+                    Console.WriteLine(response);
                 }
-                Console.WriteLine(response);
-            } catch
-            {
-                Console.WriteLine($"Server {this.currentServer} is not available");
+                catch
+                {
+                    Console.WriteLine($"Server {this.currentServer} is not available");
+                }
             }
+            return;
         }
 
-        
+
         public void CheckMaster(string partitionId, string objectId, string value, int beginRepeat)
         {
+
             string server_id = GetServerId();
 
-            // lock (DataCenterLock)
-            //{
-            if (DataCenter.ContainsKey(partitionId))
+            lock (DataCenterLock)
             {
-                
-                if (!DataCenter[partitionId][0].Equals(server_id))
+                if (PartitionAvailable(partitionId))
                 {
-                    server_id = DataCenter[partitionId][0];
-                    if (ServerList.ContainsKey(server_id))
+
+                    if (!DataCenter[partitionId][0].Equals(server_id))
                     {
+
+                        server_id = DataCenter[partitionId][0];
                         SetCurrentServer(ServerList[server_id]);
+                        Console.WriteLine("Changing to the Master server for this partition ...");
                         ConnectToServer();
-                       }
-                    else
-                    {
-                        Console.WriteLine($"Server {server_id} is not available");
-                        return;
-                       
                     }
+                    Write(partitionId, objectId, value, beginRepeat);
                 }
-                Write(partitionId, objectId, value, beginRepeat);
+                else
+                {
+                    return;
+                }
             }
-            else
-            {
-                Console.WriteLine($"Partition {partitionId} is not available");
-            }
-            //}
-            
+
         }
         public void Write(string partitionId, string objectId, string value, int beginRepeat)
         {
@@ -295,51 +346,60 @@ namespace Clients
                 Console.WriteLine($"Server {this.currentServer} is not available");
                 //lista de servidores ligados e escolher um de lá,ao receber mappings,limpar a lista
             }
-         }
+
+        }
         public void ListServer(string server_id, int beginRepeat)
         {
-            try
+            if (ServerAvailable(server_id,1))
             {
-                ListServerResponse response = client.ListServer(new ListServerRequest
+                try
                 {
-                    ServerId = server_id
-                });
-                foreach (ListServerObj server in response.ListServerObj)
+                    ListServerResponse response = client.ListServer(new ListServerRequest
+                    {
+                        ServerId = server_id
+                    });
+                    foreach (ListServerObj server in response.ListServerObj)
+                    {
+                        string output = $" partitionId {server.Object.UniqueKey.PartitionId} " +
+                                        $"objectId {server.Object.UniqueKey.ObjectId} " +
+                                        $"value {server.Object.Value}";
+                        if (server.IsMaster)
+                        {
+                            output += $" Master replica for this object";
+                        }
+
+                        if (beginRepeat != -1)
+                        {
+                            output = CheckReplace(output, beginRepeat);
+
+                        }
+                        Console.WriteLine(output);
+                    }
+                }
+                catch
                 {
-                    string output = $" partitionId {server.Object.UniqueKey.PartitionId} " +
-                                    $"objectId {server.Object.UniqueKey.ObjectId} " +
-                                    $"value {server.Object.Value}";
-                    if (server.IsMaster)
-                    {
-                        output += $" Master replica for this object";
-                    }
-
-                    if (beginRepeat != -1)
-                    {
-                        output = CheckReplace(output, beginRepeat);
-
-                    }
-                    Console.WriteLine(output);
+                    Console.WriteLine($"Server {this.currentServer} is not available");
                 }
             }
-            catch
+            else
             {
-                Console.WriteLine($"Server {this.currentServer} is not available");
+                return;
             }
         }
         public void ListGlobal(int beginRepeat)
         {
-            try {
+            try
+            {
                 ListGlobalResponse response = client.ListGlobal(new ListGlobalRequest { });
                 Console.WriteLine("----ListGlobal----");
-                foreach (GlobalStructure globalStructure  in response.GlobalList)
+                foreach (GlobalStructure globalStructure in response.GlobalList)
                 {
                     string output = $"server {globalStructure.ServerId} with objects:\n";
-                    foreach (UniqueKey uniqueKey in globalStructure.UniqueKeyList) 
+                    foreach (UniqueKey uniqueKey in globalStructure.UniqueKeyList)
                     {
-                        output+= $"partitionId {uniqueKey.PartitionId} " +
+                        output += $"partitionId {uniqueKey.PartitionId} " +
                         $"objectId {uniqueKey.ObjectId}\n";
-                        
+
                     }
 
                     if (beginRepeat != -1)
@@ -349,7 +409,7 @@ namespace Clients
                             output = CheckReplace(output, beginRepeat);
                         }
                     }
-                    
+
                     Console.WriteLine(output);
                     output = "";
                 }
@@ -388,7 +448,7 @@ namespace Clients
             {
                 while (aux < max)
                 {
-                    for (int j = 1; j < x+1; j++)
+                    for (int j = 1; j < x + 1; j++)
                     {
                         SwitchCase(lines[aux + 1].Split(' '), j);
                     }
@@ -401,26 +461,26 @@ namespace Clients
 
         public void SetDataCenter(Dictionary<string, List<string>> DataCenter)
         {
-          //  lock(DataCenter)
-           // {
+            lock (DataCenter)
+            {
                 this.DataCenter = DataCenter;
-           // }
+            }
         }
 
         public void SetServerList(Dictionary<string, string> Servers)
         {
-           // lock (ServerList)
-           // {
+            lock (ServerList)
+            {
                 this.ServerList = Servers;
-           // }
+            }
         }
 
         public void SetClientList(Dictionary<string, string> Clients)
         {
-         //   lock (ClientList)
-         //   {
+            lock (ClientList)
+            {
                 this.ClientList = Clients;
-         //   }
+            }
         }
 
         public static class Program
@@ -447,7 +507,7 @@ namespace Clients
 
                         ServerPort serverPort = new ServerPort(hostname, port, ServerCredentials.Insecure);
                         Client client = new Client(username, URL, script);
-                       
+
                         PuppetClient puppetClient = new PuppetClient(client);
 
                         Server server = new Server
@@ -471,18 +531,20 @@ namespace Clients
 
                                 break;
                             }
-                            Thread.Sleep(25); 
+                            Thread.Sleep(25);
                         }
 
-                        while (true){ Thread.Sleep(1000); }  // Avoid consuming a lot of processing power                 
+                        while (true) { Thread.Sleep(1000); }  // Avoid consuming a lot of processing power                 
 
-                    } else
+                    }
+                    else
                     {
                         Console.WriteLine("Received invalid arguments.");
                         Console.ReadKey();
                     }
-                    
-                } else
+
+                }
+                else
                 {
                     Console.WriteLine("No arguments received.");
                     Console.ReadKey();
@@ -492,4 +554,3 @@ namespace Clients
     }
 }
 
-    
