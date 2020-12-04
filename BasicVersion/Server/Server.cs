@@ -435,8 +435,7 @@ namespace MainServer
 
         private void AddObjectToStorageSystem(Object obj)
         {
-            lock (SSLock) StorageSystem.TryAdd(obj.UniqueKey, obj.Value);
-            
+            lock (SSLock) StorageSystem[obj.UniqueKey] = obj.Value;
         }
         class Program
         {
