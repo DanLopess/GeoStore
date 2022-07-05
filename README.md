@@ -1,16 +1,5 @@
 ## Design and Implementation of Distributed Applications Project
 
-
-### Authors
-**Group G27**
-| Number | Name              |
-| -----------|----------------|
-| 90590  | Daniel Lopes     |
-| 90593  | Diogo Barata      |
-| 90598  | Filipe Rodrigues  |
-
-
-
 ### Run client and server individually
 
 To run the project we must first start two servers, via input, with id 2 and id 3.
