@@ -11,3 +11,11 @@ To run the client, we need to build the project first and then copy the "scripts
 
 To run Puppet Master and PCS open the PCS's executable first and then the Puppet Master's.
 Communication between PM and PCS is not working, however, all of the available commands can be read on PM
+
+### Authors
+**Group G27**
+| Number | Name              |
+| -----------|----------------|
+| 90590  | Daniel Lopes     |
+| 90593  | Diogo Barata      |
+| 90598  | Filipe Rodrigues  |
